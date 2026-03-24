@@ -57,6 +57,19 @@ except ModuleNotFoundError:
 except ImportError:
     pass
 
+# Optional: custom parsers for local infrastructure integration.
+try:
+    from .custom_parsers import (
+        MinerUHttpParser as MinerUHttpParser,
+        OllamaLLMFunc as OllamaLLMFunc,
+        VLLMEmbeddingFunc as VLLMEmbeddingFunc,
+        VLLMRerankerFunc as VLLMRerankerFunc,
+    )
+except ModuleNotFoundError:
+    pass
+except ImportError:
+    pass
+
 __version__ = "1.2.9"
 __author__ = "Zirui Guo"
 __url__ = "https://github.com/HKUDS/RAG-Anything"
@@ -107,6 +120,16 @@ if "set_prompt_language" in globals():
             "reset_prompts",
             "register_prompt_language",
             "get_available_languages",
+        ]
+    )
+
+if "MinerUHttpParser" in globals():
+    __all__.extend(
+        [
+            "MinerUHttpParser",
+            "OllamaLLMFunc",
+            "VLLMEmbeddingFunc",
+            "VLLMRerankerFunc",
         ]
     )
 

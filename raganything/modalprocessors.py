@@ -656,7 +656,7 @@ class BaseModalProcessor:
 
     def _extract_fields_with_regex(self, response: str) -> dict:
         """Extract required fields using regex as last resort"""
-        logger.warning("Using regex fallback for JSON parsing")
+        logger.debug("Using regex fallback for JSON parsing")
 
         # Extract detailed_description
         desc_match = re.search(
