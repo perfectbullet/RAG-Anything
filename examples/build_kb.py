@@ -413,8 +413,8 @@ class KnowledgeBaseBuilder:
                 "rerank_model_func": vllm_reranker_func,
                 "default_llm_timeout": 600,
                 "chunk_token_size": 512,
-                "llm_model_max_async": 8,  # 增加并发数加速处理
-                "max_parallel_insert": 8,   # 多模态处理并发数量
+                "llm_model_max_async": 4,  # 降低并发避免API速率限制 (付费版推荐4-6)
+                "max_parallel_insert": 4,   # 多模态处理并发数量 (付费版推荐4-6)
                 "chunk_overlap_token_size": 128,  # 增加重叠以改善上下文
             },
         )

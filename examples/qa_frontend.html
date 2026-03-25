@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库问答 - RAGAnything</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #app {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        .status-dot.disconnected {
+            background: #f87171;
+        }
+
+        .status-dot.checking {
+            background: #fbbf24;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .settings {
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .settings label {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .settings select {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .settings select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .message.assistant .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .message.user .avatar {
+            background: #e2e8f0;
+        }
+
+        .message.error .avatar {
+            background: #ef4444;
+        }
+
+        .bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .message.assistant .bubble {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .message.user .bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.error .bubble {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .message.error {
+            flex-direction: row;
+        }
+
+        .message.error .avatar {
+            order: -1;
+        }
+
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 24px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-area input:focus {
+            border-color: #667eea;
+        }
+
+        .input-area input:disabled {
+            background: #f1f5f9;
+        }
+
+        .input-area button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .input-area button:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+
+        .input-area button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing {
+            display: inline-flex;
+            gap: 4px;
+            padding: 8px 0;
+        }
+
+        .typing span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+
+        .welcome {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .welcome h2 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        .welcome p {
+            font-size: 0.875rem;
+        }
+
+        .api-url {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            padding: 0 20px;
+        }
+
+        /* 滚动条样式 */
+        .chat-box::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-box::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-box::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .chat-box::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            body {
+                padding: 0;
+            }
+
+            #app {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .bubble {
+                max-width: 85%;
+            }
+
+            .settings {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>📚 知识库问答</h1>
+            <div class="status">
+                <span class="status-dot" :class="{
+                    'disconnected': status === 'disconnected',
+                    'checking': status === 'checking'
+                }"></span>
+                <span>{{ statusText }}</span>
+            </div>
+        </div>
+
+        <!-- 设置栏 -->
+        <div class="settings">
+            <label>查询模式:</label>
+            <select v-model="mode" :disabled="loading">
+                <option value="local">本地模式 (Local)</option>
+                <option value="global">全局模式 (Global)</option>
+                <option value="hybrid">混合模式 (Hybrid)</option>
+                <option value="naive">朴素模式 (Naive)</option>
+            </select>
+
+            <label style="margin-left: auto;">
+                <input type="checkbox" v-model="vlmEnhanced" :disabled="loading || !config.use_openai">
+                VLM增强
+            </label>
+        </div>
+
+        <!-- 聊天区域 -->
+        <div class="chat-box" ref="chatBox">
+            <!-- 欢迎消息 -->
+            <div class="welcome" v-if="messages.length === 0">
+                <h2>👋 欢迎使用知识库问答</h2>
+                <p>输入问题开始查询，支持数学、科学等知识内容</p>
+            </div>
+
+            <!-- 消息列表 -->
+            <div v-for="(msg, idx) in messages" :key="idx" :class="['message', msg.role]">
+                <div class="avatar">
+                    <span v-if="msg.role === 'user'">❓</span>
+                    <span v-else-if="msg.role === 'assistant'">💡</span>
+                    <span v-else>⚠️</span>
+                </div>
+                <div class="bubble">
+                    <span v-if="msg.role === 'assistant' && msg.loading" class="typing">
+                        <span></span><span></span><span></span>
+                    </span>
+                    <span v-else>{{ msg.content }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- API URL 显示 -->
+        <div class="api-url">API: {{ apiUrl }}</div>
+
+        <!-- 输入区域 -->
+        <div class="input-area">
+            <input
+                v-model="question"
+                @keyup.enter="send"
+                placeholder="输入问题..."
+                :disabled="loading || status === 'disconnected'"
+            >
+            <button @click="send" :disabled="loading || !question.trim() || status === 'disconnected'">
+                {{ loading ? '查询中...' : '发送' }}
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    question: '',
+                    messages: [],
+                    loading: false,
+                    mode: 'hybrid',
+                    vlmEnhanced: false,
+                    status: 'checking',  // checking, connected, disconnected
+                    statusText: '检查中...',
+                    config: {
+                        use_openai: false
+                    },
+                    apiUrl: 'http://localhost:8000'
+                }
+            },
+            mounted() {
+                // 从URL参数获取API地址（默认使用当前域名，即同源）
+                const urlParams = new URLSearchParams(window.location.search)
+                if (urlParams.get('api')) {
+                    this.apiUrl = urlParams.get('api')
+                } else {
+                    // 同源访问，使用空字符串
+                    this.apiUrl = ''
+                }
+
+                this.checkHealth()
+                this.loadConfig()
+
+                // 每30秒检查一次连接状态
+                setInterval(this.checkHealth, 30000)
+            },
+            methods: {
+                async checkHealth() {
+                    try {
+                        const res = await fetch(`${this.apiUrl}/api/health`)
+                        if (res.ok) {
+                            this.status = 'connected'
+                            this.statusText = '已连接'
+                        } else {
+                            throw new Error('Health check failed')
+                        }
+                    } catch (e) {
+                        this.status = 'disconnected'
+                        this.statusText = '未连接'
+                        console.error('Health check failed:', e)
+                    }
+                },
+
+                async loadConfig() {
+                    try {
+                        const res = await fetch(`${this.apiUrl}/api/config`)
+                        if (res.ok) {
+                            this.config = await res.json()
+                        }
+                    } catch (e) {
+                        console.error('Failed to load config:', e)
+                    }
+                },
+
+                async send() {
+                    if (!this.question.trim() || this.loading) return
+                    if (this.status === 'disconnected') {
+                        this.messages.push({
+                            role: 'error',
+                            content: '无法连接到服务器，请检查API地址是否正确'
+                        })
+                        this.scrollToBottom()
+                        return
+                    }
+
+                    const userQuestion = this.question
+                    this.question = ''
+                    this.loading = true
+
+                    // 添加用户消息
+                    this.messages.push({
+                        role: 'user',
+                        content: userQuestion
+                    })
+
+                    // 添加加载中的助手消息
+                    const loadingMsg = { role: 'assistant', content: '', loading: true }
+                    this.messages.push(loadingMsg)
+                    this.scrollToBottom()
+
+                    try {
+                        const res = await fetch(`${this.apiUrl}/api/query`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                question: userQuestion,
+                                mode: this.mode,
+                                vlm_enhanced: this.vlmEnhanced
+                            })
+                        })
+
+                        if (!res.ok) {
+                            const error = await res.json()
+                            throw new Error(error.detail || '请求失败')
+                        }
+
+                        const data = await res.json()
+
+                        // 更新助手消息
+                        loadingMsg.content = data.answer
+                        loadingMsg.loading = false
+
+                        if (!data.success) {
+                            loadingMsg.role = 'error'
+                            loadingMsg.content = data.answer || '查询失败'
+                        }
+
+                    } catch (e) {
+                        loadingMsg.role = 'error'
+                        loadingMsg.content = '请求失败: ' + e.message
+                        loadingMsg.loading = false
+                    }
+
+                    this.loading = false
+                    this.scrollToBottom()
+                },
+
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const chatBox = this.$refs.chatBox
+                        if (chatBox) {
+                            chatBox.scrollTop = chatBox.scrollHeight
+                        }
+                    })
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
