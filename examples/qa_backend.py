@@ -291,7 +291,7 @@ FRONTEND_HTML = '''<!DOCTYPE html>
 # 启动
 # =============================================================================
 def main():
-    port = int(os.getenv("PORT", "8000"))
+    port = int(os.getenv("PORT", "8200"))
     host = os.getenv("HOST", "0.0.0.0")
 
     print(f"🌐 访问地址: http://localhost:{port}")

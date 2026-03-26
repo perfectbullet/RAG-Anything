@@ -232,8 +232,10 @@ class KnowledgeBaseQuery:
             },
         )
 
-        await self.rag._ensure_lightrag_initialized()
-        await self.rag.lightrag.initialize_storages()
+        result = await self.rag._ensure_lightrag_initialized()
+        if not result.get("success"):
+            error_msg = result.get("error", "Unknown initialization error")
+            raise RuntimeError(f"Failed to initialize RAG: {error_msg}")
 
         # 显示统计
         import json

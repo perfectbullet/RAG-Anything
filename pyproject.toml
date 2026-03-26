@@ -23,7 +23,6 @@ classifiers = [
 dependencies = [
     "huggingface_hub",
     "lightrag-hku",
-    "mineru[core]",
     "tqdm",
 ]
 
