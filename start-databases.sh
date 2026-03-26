@@ -125,18 +125,18 @@ show_connection_info() {
     echo "│   密码:         chanjing2025                            │"
     echo "├─────────────────────────────────────────────────────────┤"
     echo "│ Neo4j (本地 Docker)                                      │"
-    echo "│   URI:          bolt://192.168.8.233 :7687                   │"
+    echo "│   URI:          bolt://192.168.8.233:7687                   │"
     echo "│   Username:     neo4j                                   │"
     echo "│   Password:     chanjing2025                           │"
-    echo "│   HTTP:         http://192.168.8.233 :7474                   │"
+    echo "│   HTTP:         http://192.168.8.233:7474                   │"
     echo "├─────────────────────────────────────────────────────────┤"
     echo "│ Milvus (本地 Docker)                                     │"
-    echo "│   URI:          http://192.168.8.233 :19530                  │"
+    echo "│   URI:          http://192.168.8.233:19530                  │"
     echo "│   Database:     rag_db                                  │"
     echo "├─────────────────────────────────────────────────────────┤"
     echo "│ MinIO (本地 Docker, Milvus 内部使用)                     │"
-    echo "│   API:          http://192.168.8.233 :9000                   │"
-    echo "│   Console:      http://192.168.8.233 :9001                   │"
+    echo "│   API:          http://192.168.8.233:9000                   │"
+    echo "│   Console:      http://192.168.8.233:9001                   │"
     echo "│   Access Key:   minioadmin                              │"
     echo "│   Secret Key:   chanjing2025                           │"
     echo "└─────────────────────────────────────────────────────────┘"
@@ -150,7 +150,7 @@ test_connections() {
 
     # 测试外部 MongoDB
     echo "📡 测试外部 MongoDB (192.168.8.233:27017)..."
-    if mongosh "mongodb://zenking:chanjing2025@192.168.8.233:27017/rag_db" --eval "db.adminCommand('ping')" &> /dev/null; then
+    if mongosh "mongodb://zenking:chanjing@2025@192.168.8.233:27017/rag_db?authSource=admin" --eval "db.adminCommand('ping')" &> /dev/null; then
         echo "   ✅ MongoDB 连接成功"
     else
         echo "   ⚠️  MongoDB 连接失败（请确保："
@@ -160,24 +160,24 @@ test_connections() {
     fi
 
     # 测试本地 Neo4j
-    echo "📡 测试本地 Neo4j (192.168.8.233 :7687)..."
-    if cypher-shell -a "bolt://neo4j:chanjing2025@192.168.8.233 :7687" "RETURN 1" &> /dev/null; then
+    echo "📡 测试本地 Neo4j (192.168.8.233:7474)..."
+    if curl -s -u "neo4j:chanjing2025" http://192.168.8.233:7474 &> /dev/null; then
         echo "   ✅ Neo4j 连接成功"
     else
         echo "   ❌ Neo4j 连接失败（请先运行: ./start-databases.sh start）"
     fi
 
     # 测试本地 Milvus
-    echo "📡 测试本地 Milvus (192.168.8.233 :19530)..."
-    if curl -s http://192.168.8.233 :19530/healthz &> /dev/null; then
+    echo "📡 测试本地 Milvus (192.168.8.233:19530)..."
+    if curl -s http://192.168.8.233:19530/healthz &> /dev/null; then
         echo "   ✅ Milvus 连接成功"
     else
         echo "   ❌ Milvus 连接失败（请先运行: ./start-databases.sh start）"
     fi
 
     # 测试本地 MinIO
-    echo "📡 测试本地 MinIO (192.168.8.233 :9000)..."
-    if curl -s http://192.168.8.233 :9000/minio/health/live &> /dev/null; then
+    echo "📡 测试本地 MinIO (192.168.8.233:9000)..."
+    if curl -s http://192.168.8.233:9000/minio/health/live &> /dev/null; then
         echo "   ✅ MinIO 连接成功"
     else
         echo "   ❌ MinIO 连接失败（请先运行: ./start-databases.sh start）"
