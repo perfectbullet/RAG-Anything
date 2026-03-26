@@ -1,0 +1,57 @@
+services:
+  neo4j:
+    container_name: neo4j
+    image: neo4j:5.20-community  # 或 neo4j:5.20-enterprise（需许可证）
+    ports:
+      - "7474:7474"  # HTTP: Neo4j Browser
+      - "7687:7687"  # Bolt: 客户端驱动连接
+    environment:
+      # 🔐 认证配置（首次启动必须设置）
+      - NEO4J_AUTH=neo4j/chanjing2025
+      
+      # 💾 内存配置（根据宿主机调整）
+      - NEO4J_dbms_memory_heap_initial__size=512m
+      - NEO4J_dbms_memory_heap_max__size=2g
+      - NEO4J_dbms_memory_pagecache_size=1g
+      
+      # ⚙️ 其他配置
+      - NEO4J_dbms_default__database=neo4j
+      - NEO4J_dbms_security_auth__minimum__password__length=8
+      
+      # 🔌 插件配置（可选：APOC, GDS）
+      - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*, gds.*
+      
+      # 🌐 允许外部访问
+      - NEO4J_server_default__advertised__address=localhost
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+      - neo4j-import:/var/lib/neo4j/import    # 用于 LOAD CSV
+      - ./neo4j/plugins:/plugins  # 自定义插件 本地目录挂载
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    # 可选：限制资源
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+
+volumes:
+  neo4j-data:
+    name: neo4j-data
+  neo4j-logs:
+    name: neo4j-logs
+  neo4j-import:
+    name: neo4j-import
+
+networks:
+  default:
+    name: neo4j-net
