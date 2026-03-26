@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-Example script demonstrating direct content list insertion with RAGAnything
+示例脚本：演示通过 RAGAnything 直接插入内容列表
+本示例展示如何实现：
 
-This example shows how to:
-1. Create a simple content list with different content types
-2. Insert content list directly without document parsing using insert_content_list() method
-3. Perform pure text queries using aquery() method
-4. Perform multimodal queries with specific multimodal content using aquery_with_multimodal() method
-5. Handle different types of multimodal content in the inserted knowledge base
+创建包含不同内容类型的简易内容列表
+使用 insert_content_list () 方法直接插入内容列表，无需进行文档解析
+使用 aquery () 方法执行纯文本查询
+使用 aquery_with_multimodal () 方法，结合指定的多模态内容执行多模态查询
+处理已插入知识库中的各类多模态内容
 """
 
 import os
