@@ -48,7 +48,6 @@ services:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
       COMMON_SECURITY_AUTHORIZATIONENABLED: true
-      ROOT_PASSWORD: chanjing2025
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/milvus:/var/lib/milvus
     ports:

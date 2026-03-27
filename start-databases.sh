@@ -150,7 +150,7 @@ test_connections() {
 
     # 测试外部 MongoDB
     echo "📡 测试外部 MongoDB (192.168.8.233:27017)..."
-    if mongosh "mongodb://zenking:chanjing@2025@192.168.8.233:27017/rag_db?authSource=admin" --eval "db.adminCommand('ping')" &> /dev/null; then
+    if mongosh "mongodb://zenking:chanjing2025@192.168.8.233:27017/rag_db?authSource=admin" --eval "db.adminCommand('ping')" &> /dev/null; then
         echo "   ✅ MongoDB 连接成功"
     else
         echo "   ⚠️  MongoDB 连接失败（请确保："

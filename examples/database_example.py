@@ -77,13 +77,15 @@ async def main():
     # 方式1：通过环境变量配置（推荐）
     # 在 .env 文件中设置：
     # LIGHTRAG_KV_STORAGE=MongoKVStorage
-    # LIGHTRAG_VECTOR_STORAGE=MilvusStorage
+    # LIGHTRAG_VECTOR_STORAGE=MilvusVectorDBStorage
     # LIGHTRAG_DOC_STATUS_STORAGE=MongoDocStatusStorage
-    # LIGHTRAG_GRAPH_STORAGE=Neo4jStorage
+    # LIGHTRAG_GRAPH_STORAGE=Neo4JStorage
     #
     # MONGO_URI=mongodb://root:rag_password_123@localhost:27017/
     # MONGO_DATABASE=rag_db
     # MILVUS_URI=http://localhost:19530
+    # MILVUS_TOKEN=base64_encoded_username:password  # echo -n "root:password" | base64
+    # MILVUS_DB_NAME=rag_db
     # NEO4J_URI=bolt://localhost:7687
     # NEO4J_USERNAME=neo4j
     # NEO4J_PASSWORD=neo4j_password_123
@@ -95,6 +97,8 @@ async def main():
     )
 
     # 方式2：通过代码参数配置
+    # 注意：MongoDB 和 Neo4j 的连接参数必须通过环境变量设置，不能通过 lightrag_kwargs 传递
+    # Milvus 可以通过 vector_db_storage_cls_kwargs 显式传递，也可以使用环境变量
     rag = RAGAnything(
         config=config,
         llm_model_func=llm_model_func,
@@ -110,24 +114,29 @@ async def main():
             ),
         ),
         lightrag_kwargs={
-            # 存储类型配置
+            # 存储类型配置（注意类名必须与 LightRAG 中定义的完全一致）
             "kv_storage": "MongoKVStorage",
-            "vector_storage": "MilvusStorage",
+            "vector_storage": "MilvusVectorDBStorage",
             "doc_status_storage": "MongoDocStatusStorage",
-            "graph_storage": "Neo4jStorage",
+            "graph_storage": "Neo4JStorage",
 
-            # MongoDB 配置（可选，如果已通过环境变量设置）
-            # "mongo_uri": "mongodb://root:rag_password_123@localhost:27017/",
-            # "mongo_database": "rag_db",
+            # Milvus 显式配置（可选，优先级高于环境变量）
+            # 如果 Milvus 启用了认证，需要提供 token
+            "vector_db_storage_cls_kwargs": {
+                "uri": "http://localhost:19530",
+                "token": "cm9vdDpwYXNzd29yZA==",  # base64("root:password")
+                "db_name": "rag_db",
+            },
 
-            # Milvus 配置（可选，如果已通过环境变量设置）
-            # "milvus_uri": "http://localhost:19530",
-            # "milvus_db_name": "rag_db",
-
-            # Neo4j 配置（可选，如果已通过环境变量设置）
-            # "neo4j_uri": "bolt://localhost:7687",
-            # "neo4j_username": "neo4j",
-            # "neo4j_password": "neo4j_password_123",
+            # MongoDB 和 Neo4j 配置：
+            # 必须通过环境变量设置，或在代码中设置 os.environ before RAGAnything 初始化
+            # 例如：
+            # import os
+            # os.environ["MONGO_URI"] = "mongodb://root:rag_password_123@localhost:27017/"
+            # os.environ["MONGO_DATABASE"] = "rag_db"
+            # os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+            # os.environ["NEO4J_USERNAME"] = "neo4j"
+            # os.environ["NEO4J_PASSWORD"] = "neo4j_password_123"
         }
     )
 
@@ -137,14 +146,16 @@ async def main():
     print()
     print("📦 存储配置:")
     print("   KV 存储:          MongoDB")
-    print("   向量存储:         Milvus")
+    print("   向量存储:         Milvus (带认证)")
     print("   文档状态存储:     MongoDB")
     print("   图存储:           Neo4j")
     print()
     print("📊 数据库连接:")
     print("   MongoDB:          mongodb://localhost:27017")
-    print("   Milvus:           http://localhost:19530")
+    print("   Milvus:           http://localhost:19530 (需要 token)")
     print("   Neo4j:            bolt://localhost:7687")
+    print()
+    print("💡 提示: 如果 Milvus 启用了认证，请确保在 .env 中设置 MILVUS_TOKEN")
     print()
 
     # ============================================
