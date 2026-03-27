@@ -119,6 +119,36 @@ def get_required_env(var_name: str) -> str:
 # =============================================================================
 # 日志配置
 # =============================================================================
+class LongDataFilter(logging.Filter):
+    """日志过滤器，截断过长的数据（如 image_data）"""
+
+    def __init__(self, max_length: int = 200):
+        super().__init__()
+        self.max_length = max_length
+
+    def filter(self, record):
+        """过滤日志记录，截断过长的值"""
+        if hasattr(record, "msg") and isinstance(record.msg, str):
+            record.msg = self._truncate_long_values(record.msg)
+        return True
+
+    def _truncate_long_values(self, text: str) -> str:
+        """截断文本中过长的值"""
+        import re
+
+        def truncate_match(match):
+            key = match.group(1)
+            value = match.group(2)
+            # 截断过长的值（特别是 image_data 和 messages）
+            if len(value) > self.max_length:
+                return f"'{key}': '{value[:self.max_length]}...<truncated>'"
+            return match.group(0)
+
+        # 匹配 'key': 'value' 或 "key": "value" 格式
+        pattern = r"['\"](\w*(?:image_data|messages|content)\w*)['\"]:\s*['\"]([^'\"]*)['\"]"
+        return re.sub(pattern, truncate_match, text)
+
+
 def configure_logging():
     """配置日志系统"""
     log_dir = os.getenv("LOG_DIR", os.getcwd())
@@ -127,6 +157,9 @@ def configure_logging():
 
     log_max_bytes = int(os.getenv("LOG_MAX_BYTES", "10485760"))
     log_backup_count = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+
+    # 创建日志过滤器
+    long_data_filter = LongDataFilter(max_length=200)
 
     logging.config.dictConfig(
         {
@@ -138,11 +171,18 @@ def configure_logging():
                     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
                 },
             },
+            "filters": {
+                "long_data_filter": {
+                    "()": "insert_with_databases_example.LongDataFilter",
+                    "max_length": 200,
+                },
+            },
             "handlers": {
                 "console": {
                     "formatter": "default",
                     "class": "logging.StreamHandler",
                     "stream": "ext://sys.stderr",
+                    "filters": ["long_data_filter"],
                 },
                 "file": {
                     "formatter": "detailed",
@@ -151,6 +191,7 @@ def configure_logging():
                     "maxBytes": log_max_bytes,
                     "backupCount": log_backup_count,
                     "encoding": "utf-8",
+                    "filters": ["long_data_filter"],
                 },
             },
             "loggers": {
@@ -200,6 +241,10 @@ async def vision_model_func(
     1. messages格式：多模态VLM增强查询（包含文本和图像的混合消息）
     2. image_data格式：图像处理（base64编码的图像数据）
     """
+    # 从 kwargs 中移除 image_data 和 messages，避免传递给 openai_complete_if_cache
+    kwargs.pop("image_data", None)
+    kwargs.pop("messages", None)
+
     # 抑制 stdout（避免打印 image_data）
     with io.StringIO() as buf, contextlib.redirect_stdout(buf):
         if messages:
@@ -213,11 +258,27 @@ async def vision_model_func(
                 **kwargs,
             )
         elif image_data:
+            # 将 image_data 转换为标准的 OpenAI messages 格式
+            image_messages = [
+                {"role": "system", "content": system_prompt} if system_prompt else None,
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{image_data}"},
+                        },
+                    ],
+                },
+            ]
+            # 过滤掉 None 值
+            image_messages = [m for m in image_messages if m is not None]
             result = await openai_complete_if_cache(
                 get_required_env("VISION_MODEL"),
-                prompt,
-                system_prompt=system_prompt,
-                image_data=image_data,
+                "",
+                system_prompt=None,  # 已在 messages 中
+                messages=image_messages,
                 base_url=get_required_env("OPENAI_API_BASE"),
                 api_key=get_required_env("OPENAI_API_KEY"),
                 **kwargs,
