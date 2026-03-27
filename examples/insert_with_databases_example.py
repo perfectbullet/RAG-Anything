@@ -166,9 +166,10 @@ def configure_logging():
             "version": 1,
             "disable_existing_loggers": False,
             "formatters": {
-                "default": {"format": "%(levelname)s: %(message)s"},
+                "default": {"format": "%(asctime)s - %(levelname)s: %(message)s", "datefmt": "%H:%M:%S"},
                 "detailed": {
-                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S"
                 },
             },
             "filters": {
@@ -461,12 +462,12 @@ async def main():
 
     # 5. 插入内容列表
     logger.info("\n📝 插入内容列表到数据库...")
-    await rag.insert_content_list(
-        content_list=content_list,
-        file_path="01-math-16pages-part1-page1-16.pdf",
-        doc_id="math-test-doc-001",
-        display_stats=True,
-    )
+    # await rag.insert_content_list(
+    #     content_list=content_list,
+    #     file_path="01-math-16pages-part1-page1-16.pdf",
+    #     doc_id="math-test-doc-001",
+    #     display_stats=True,
+    # )
     logger.info("✅ 内容列表插入完成!")
 
     # 6. 示例查询

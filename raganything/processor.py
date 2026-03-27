@@ -636,6 +636,7 @@ class ProcessorMixin:
         )
 
         for i, item in enumerate(multimodal_items):
+            item_start_time = time.time()
             try:
                 content_type = item.get("type", "unknown")
                 self.logger.info(
@@ -677,8 +678,9 @@ class ProcessorMixin:
                         chunk_id = entity_info["chunk_id"]
                         multimodal_chunk_ids.append(chunk_id)
 
+                    item_time = time.time() - item_start_time
                     self.logger.info(
-                        f"{content_type} processing complete: {entity_info.get('entity_name', 'Unknown')}"
+                        f"✅ {content_type} processing complete ({item_time:.2f}s): {entity_info.get('entity_name', 'Unknown')}"
                     )
                 else:
                     self.logger.warning(

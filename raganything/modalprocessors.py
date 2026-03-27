@@ -725,6 +725,8 @@ class BaseModalProcessor:
         chunks = {chunk_id: chunk_data}
 
         # Extract entities and relationships
+        logger.info(f"🧠 Extracting entities/relations from chunk: {chunk_id}")
+        extract_start = time.time()
         chunk_results = await extract_entities(
             chunks=chunks,
             global_config=self.global_config,
@@ -732,6 +734,8 @@ class BaseModalProcessor:
             pipeline_status_lock=pipeline_status_lock,
             llm_response_cache=self.hashing_kv,
         )
+        extract_time = time.time() - extract_start
+        logger.info(f"✅ Entity extraction completed in {extract_time:.2f}s: {chunk_id}")
 
         # Add "belongs_to" relationships for all extracted entities
         processed_chunk_results = []
@@ -904,11 +908,15 @@ class ImageModalProcessor(BaseModalProcessor):
                 raise RuntimeError(f"Failed to encode image to base64: {image_path}")
 
             # Call vision model with encoded image
+            logger.info(f"🔍 Calling VLM for image analysis: {image_path_obj.name}")
+            vlm_start = time.time()
             response = await self.modal_caption_func(
                 vision_prompt,
                 image_data=image_base64,
                 system_prompt=PROMPTS["IMAGE_ANALYSIS_SYSTEM"],
             )
+            vlm_time = time.time() - vlm_start
+            logger.info(f"✅ VLM completed in {vlm_time:.2f}s: {image_path_obj.name}")
 
             # Parse response (reuse existing logic)
             enhanced_caption, entity_info = self._parse_response(response, entity_name)
