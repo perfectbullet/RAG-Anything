@@ -276,3 +276,25 @@ def get_processor_supports(proc_type: str) -> List[str]:
         ],
     }
     return supports_map.get(proc_type, ["Basic processing"])
+
+
+def get_image_dimensions(image_path: str) -> Tuple[int, int] | None:
+    """
+    Get the width and height of an image file.
+
+    Args:
+        image_path: Path to the image file
+
+    Returns:
+        Tuple of (width, height) in pixels, or None if failed to read
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(image_path) as img:
+            width, height = img.size
+            logger.debug(f"Image dimensions: {image_path} -> {width}x{height}")
+            return width, height
+    except Exception as e:
+        logger.warning(f"Failed to get image dimensions for {image_path}: {e}")
+        return None

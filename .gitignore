@@ -87,3 +87,4 @@ mineru-out
 01-math-16pages-part1-page1-16.pdf
 rerank_result.json
 env.example.zh
+*result_with_retrivel_data.json

@@ -10,7 +10,7 @@ import re
 import time
 from typing import Dict, List, Any
 from pathlib import Path
-from lightrag import QueryParam
+from lightrag import QueryParam, LightRAG
 from lightrag.utils import always_get_an_event_loop
 from raganything.prompt import PROMPTS
 from raganything.utils import (
@@ -165,12 +165,20 @@ class QueryMixin:
 
         self.logger.info(f"Executing text query: {query[:100]}...")
         self.logger.info(f"Query mode: {mode}")
-
+        self.logger.info(f"system_prompt: {system_prompt}")
         try:
             # Call LightRAG's query method
-            result = await self.lightrag.aquery(
+            # result = await self.lightrag.aquery(
+            #     query, param=query_param, system_prompt=system_prompt
+            # )
+            self.lightrag: LightRAG
+            result_with_retrivel_data = await self.lightrag.aquery_llm(
                 query, param=query_param, system_prompt=system_prompt
             )
+            with open(f'{query}-result_with_retrivel_data.json', 'wt') as f:
+                json.dump(result_with_retrivel_data, f, indent=2, ensure_ascii=False) 
+            # result["llm_response"]["content"] - 答案
+            result = result_with_retrivel_data["llm_response"]["content"]
         except Exception as exc:
             if callback_manager is not None:
                 callback_manager.dispatch(

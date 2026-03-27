@@ -13,7 +13,7 @@ import re
 import json
 import time
 import base64
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, TYPE_CHECKING
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -28,6 +28,10 @@ from lightrag.operate import extract_entities, merge_nodes_and_edges
 
 # Import prompt templates
 from raganything.prompt import PROMPTS
+
+# Type checking imports (avoid circular dependency)
+if TYPE_CHECKING:
+    from raganything.config import RAGAnythingConfig
 
 
 @dataclass
@@ -735,7 +739,9 @@ class BaseModalProcessor:
             llm_response_cache=self.hashing_kv,
         )
         extract_time = time.time() - extract_start
-        logger.info(f"✅ Entity extraction completed in {extract_time:.2f}s: {chunk_id}")
+        logger.info(
+            f"✅ Entity extraction completed in {extract_time:.2f}s: {chunk_id}"
+        )
 
         # Add "belongs_to" relationships for all extracted entities
         processed_chunk_results = []
@@ -805,6 +811,7 @@ class ImageModalProcessor(BaseModalProcessor):
         lightrag: LightRAG,
         modal_caption_func,
         context_extractor: ContextExtractor = None,
+        config: "RAGAnythingConfig" = None,
     ):
         """Initialize image processor
 
@@ -812,8 +819,10 @@ class ImageModalProcessor(BaseModalProcessor):
             lightrag: LightRAG instance
             modal_caption_func: Function for generating descriptions (supporting image understanding)
             context_extractor: Context extractor instance
+            config: RAGAnything config for image processing settings
         """
         super().__init__(lightrag, modal_caption_func, context_extractor)
+        self.config = config
 
     def _encode_image_to_base64(self, image_path: str) -> str:
         """Encode image to base64"""
@@ -862,6 +871,39 @@ class ImageModalProcessor(BaseModalProcessor):
             footnotes = content_data.get(
                 "image_footnote", content_data.get("img_footnote", [])
             )
+
+            # ===== Small image filtering logic =====
+            # Skip VLM analysis for small images without caption
+            if self.config and self.config.skip_small_images:
+                # Check if image has a meaningful caption
+                has_caption = bool(captions and captions != ["None"])
+                if not has_caption:
+                    # No caption, check image dimensions
+                    from raganything.utils import get_image_dimensions
+
+                    dimensions = get_image_dimensions(image_path)
+                    if dimensions:
+                        width, height = dimensions
+                        min_size = self.config.min_image_size
+                        if width < min_size or height < min_size:
+                            # Skip VLM for small image without caption
+                            image_name = Path(image_path).name
+                            logger.info(
+                                f"⏭️  Skipping small image without caption: "
+                                f"{image_name} ({width}x{height}px < {min_size}px)"
+                            )
+                            fallback_entity = {
+                                "entity_name": entity_name
+                                if entity_name
+                                else f"image_{compute_mdhash_id(str(modal_content))}",
+                                "entity_type": "image",
+                                "summary": f"Small decorative image: {image_name}",
+                            }
+                            return (
+                                f"[Small decorative image: {image_name}]",
+                                fallback_entity,
+                            )
+            # ===== End of filtering logic =====
 
             # Validate image path
             if not image_path:

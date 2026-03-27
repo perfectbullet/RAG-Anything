@@ -57,6 +57,7 @@ import numpy as np
 from dotenv import load_dotenv
 from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc, logger, set_verbose_debug
+from lightrag import QueryParam
 from raganything import RAGAnything, RAGAnythingConfig
 
 # Load .env file
@@ -217,11 +218,11 @@ async def llm_model_func(
 ) -> str:
     """OpenAI兼容API的LLM函数"""
     return await openai_complete_if_cache(
-        get_required_env("OPENAI_MODEL"),
+        get_required_env("OLLAMA_MODEL"),
         prompt,
         system_prompt=system_prompt,
         history_messages=history_messages or [],
-        base_url=get_required_env("OPENAI_API_BASE"),
+        base_url=get_required_env("OLLAMA_BASE_URL"),
         api_key=get_required_env("OPENAI_API_KEY"),
         **kwargs,
     )
@@ -475,12 +476,18 @@ async def main():
     test_queries = [
         "数学必修第一册包含哪些内容？",
         "文档中有哪些重要的数学概念？",
+        "在集合中有哪些常用的术语？",
+        "今天北京天气怎么样"
     ]
 
     for query in test_queries:
-        logger.info(f"\n[查询]: {query}")
-        result = await rag.aquery(query, mode="hybrid")
-        logger.info(f"[回答]: {result}")
+        logger.info(f"\n{'=' * 70}")
+        logger.info(f"[查询]: {query}")
+        logger.info(f"{'=' * 70}")
+        # 再获取最终答案
+        result = await rag.aquery(query, mode="hybrid", vlm_enhanced=False)
+
+        logger.info(f"\n[回答]:\n{result}")
 
     # 7. 数据库信息
     logger.info("\n" + "=" * 70)

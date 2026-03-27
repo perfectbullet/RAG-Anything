@@ -51,6 +51,16 @@ class RAGAnythingConfig:
     )
     """Enable equation content processing."""
 
+    # Image Processing Filtering Configuration
+    # ---
+    skip_small_images: bool = field(
+        default=get_env_value("SKIP_SMALL_IMAGES", True, bool)
+    )
+    """Skip VLM analysis for small images without caption (width or height < min_image_size)."""
+
+    min_image_size: int = field(default=get_env_value("MIN_IMAGE_SIZE", 300, int))
+    """Minimum image size threshold in pixels. Images smaller than this without caption will skip VLM."""
+
     # Batch Processing Configuration
     # ---
     max_concurrent_files: int = field(
