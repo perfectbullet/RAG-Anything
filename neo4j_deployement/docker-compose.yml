@@ -25,6 +25,9 @@ services:
       
       # 允许外部访问
       - NEO4J_server_default__advertised__address=localhost
+
+      # 时区配置
+      - TZ=Asia/Shanghai
     volumes:
       - neo4j-data:/data
       - neo4j-logs:/logs
