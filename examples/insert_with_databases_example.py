@@ -336,7 +336,7 @@ async def vllm_reranker_func(
                     {
                         "doc_id": idx,
                         "index": idx,
-                        "score": item["relevance_score"],
+                        "relevance_score": item["relevance_score"],
                         "text": item.get("document", {}).get("text", documents[idx]),
                     }
                 )
@@ -480,7 +480,7 @@ async def main():
     for query in test_queries:
         logger.info(f"\n[查询]: {query}")
         result = await rag.aquery(query, mode="hybrid")
-        logger.info(f"[回答]: {result[:300]}...")
+        logger.info(f"[回答]: {result}")
 
     # 7. 数据库信息
     logger.info("\n" + "=" * 70)
