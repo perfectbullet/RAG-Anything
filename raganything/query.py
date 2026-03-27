@@ -161,7 +161,15 @@ class QueryMixin:
             )
 
         # Create query parameters
-        query_param = QueryParam(mode=mode, **kwargs)
+        # Note: min_rerank_score and cosine_threshold are LightRAG config,
+        # not QueryParam parameters. They should be set during RAGAnything initialization.
+        query_param = QueryParam(
+            mode=mode,
+            top_k=20,                  # 减少召回数量
+            chunk_top_k=10,
+            enable_rerank=True,
+            **kwargs
+        )
 
         self.logger.info(f"Executing text query: {query[:100]}...")
         self.logger.info(f"Query mode: {mode}")

@@ -57,7 +57,6 @@ import numpy as np
 from dotenv import load_dotenv
 from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc, logger, set_verbose_debug
-from lightrag import QueryParam
 from raganything import RAGAnything, RAGAnythingConfig
 
 # Load .env file
@@ -409,11 +408,7 @@ async def main():
     print("\n🔍 验证环境变量配置...")
     validate_required_env()
 
-    # 2. 加载测试数据
-    print("\n📂 加载测试数据...")
-    content_list = load_test_content_list()
-
-    # 3. 配置 RAGAnything
+    # 2. 配置 RAGAnythingConfig
     config = RAGAnythingConfig(
         working_dir=os.getenv("WORKING_DIR", "./rag_storage_db_example"),
         enable_image_processing=True,
@@ -422,20 +417,24 @@ async def main():
         display_content_stats=True,
     )
 
-    # 4. 初始化 RAGAnything（带数据库后端）
+    # 3. 初始化 RAGAnything（带数据库后端）
+    # 隐藏密码显示 MongoDB URI
+    mongo_display = get_required_env("MONGO_URI")
+    if "@" in mongo_display:
+        # 隐藏密码部分
+        parts = mongo_display.split("@")
+        auth = parts[0].split("://")[-1]
+        if ":" in auth:
+            username = auth.split(":")[0]
+            mongo_display = f"{parts[0].split('://')[0]}//{username}:***@{parts[1]}"
+    
     logger.info("🔧 初始化 RAGAnything（数据库后端）...")
     logger.info("📦 存储配置:")
-    logger.info("   KV 存储:          MongoDB")
-    logger.info("   向量存储:         Milvus")
-    logger.info("   文档状态存储:     MongoDB")
-    logger.info("   图存储:           Neo4j")
-    logger.info("   Reranker:         VLLM")
+    logger.info(f"   文档状态存储 (MongoDB): {mongo_display}")
+    logger.info(f"   向量存储 (Milvus): {get_required_env('MILVUS_URI')}")
+    logger.info(f"   图存储 (Neo4j): http://{get_required_env('NEO4J_URI').replace('bolt://', '').replace(':7687', '')}:7474")
+    logger.info(f"   Reranker (VLLM): {get_required_env('VLLM_RERANK_URL')}")
 
-    # Note: Database connection parameters are read from environment variables by LightRAG storage backends
-    # MongoDB: MONGO_URI, MONGO_DATABASE
-    # Neo4j: NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD
-    # Milvus: MILVUS_URI, MILVUS_USER, MILVUS_PASSWORD, MILVUS_DB_NAME
-    # These are already loaded from .env file at line 62 and validated by validate_required_env()
 
     # For Milvus, we pass explicit parameters via vector_db_storage_cls_kwargs
     # Using username and password authentication instead of token
@@ -458,10 +457,13 @@ async def main():
             "graph_storage": "Neo4JStorage",
             "rerank_model_func": vllm_reranker_func,
             "vector_db_storage_cls_kwargs": milvus_config,
+            # LightRAG 配置 (注意: 使用 cosine_better_than_threshold 而不是 cosine_threshold)
+            "cosine_better_than_threshold": 0.5,  # 向量相似度阈值
+            "min_rerank_score": 0.3,  # 过滤 rerank 分数低于 0.2 的 chunks
         },
     )
 
-    # 5. 插入内容列表
+    # 4. 插入内容列表
     logger.info("\n📝 插入内容列表到数据库...")
     # await rag.insert_content_list(
     #     content_list=content_list,
@@ -471,7 +473,7 @@ async def main():
     # )
     logger.info("✅ 内容列表插入完成!")
 
-    # 6. 示例查询
+    # 5. 示例查询
     logger.info("\n🔍 执行示例查询...")
     test_queries = [
         "数学必修第一册包含哪些内容？",
@@ -489,26 +491,9 @@ async def main():
 
         logger.info(f"\n[回答]:\n{result}")
 
-    # 7. 数据库信息
     logger.info("\n" + "=" * 70)
     logger.info("✅ 示例执行完成!")
     logger.info("=" * 70)
-    logger.info("📌 数据库连接信息:")
-
-    # 隐藏密码显示 MongoDB URI
-    mongo_display = get_required_env("MONGO_URI")
-    if "@" in mongo_display:
-        # 隐藏密码部分
-        parts = mongo_display.split("@")
-        auth = parts[0].split("://")[-1]
-        if ":" in auth:
-            username = auth.split(":")[0]
-            mongo_display = f"{parts[0].split('://')[0]}//{username}:***@{parts[1]}"
-
-    logger.info(f"   MongoDB:    {mongo_display}")
-    logger.info(f"   Neo4j:      {get_required_env('NEO4J_URI')}")
-    logger.info(f"   Milvus:     {get_required_env('MILVUS_URI')}")
-    logger.info(f"   Neo4j 浏览: http://{get_required_env('NEO4J_URI').replace('bolt://', '').replace(':7687', '')}:7474")
 
 
 if __name__ == "__main__":
