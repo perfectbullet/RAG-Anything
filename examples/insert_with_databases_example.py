@@ -58,6 +58,7 @@ from dotenv import load_dotenv
 from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc, logger, set_verbose_debug
 from raganything import RAGAnything, RAGAnythingConfig
+from raganything.utils import generate_doc_id_from_path
 
 # Load .env file
 load_dotenv(dotenv_path=str(Path(__file__).parent.parent / ".env"), override=False)
@@ -352,7 +353,7 @@ def get_embedding_func():
 
 
 # =============================================================================
-# 测试数据加载
+# 测试数据加载 
 # =============================================================================
 def load_test_content_list():
     """
@@ -361,8 +362,8 @@ def load_test_content_list():
     Returns:
         List[Dict]: 处理后的 content_list，img_path 已转换为绝对路径
     """
-    vlm_base_dir = Path("/home/zj/RAG-Anything/mineru-out/01-math-16pages-part1-page1-16/vlm")
-    json_path = vlm_base_dir / "01-math-16pages-part1-page1-16_content_list.json"
+    vlm_base_dir = Path("mineru-out/data/03高中数学选择性必修第一册")
+    json_path = vlm_base_dir / "03高中数学选择性必修第一册_content_list.json"
 
     if not json_path.exists():
         raise FileNotFoundError(f"测试数据文件不存在: {json_path}")
@@ -392,7 +393,7 @@ def load_test_content_list():
     logger.info(f"📊 内容类型统计: {type_counts}")
     logger.info(f"🖼️  修复了 {image_count} 个图像路径")
 
-    return content_list
+    return content_list, json_path
 
 
 # =============================================================================
@@ -465,12 +466,16 @@ async def main():
 
     # 4. 插入内容列表
     logger.info("\n📝 插入内容列表到数据库...")
-    # await rag.insert_content_list(
-    #     content_list=content_list,
-    #     file_path="01-math-16pages-part1-page1-16.pdf",
-    #     doc_id="math-test-doc-001",
-    #     display_stats=True,
-    # )
+    content_list, json_file_path = load_test_content_list()
+    # 从文件路径自动生成唯一的 doc_id
+    doc_id = generate_doc_id_from_path(json_file_path)
+    logger.info(f"📋 生成的 doc_id: {doc_id}")
+    await rag.insert_content_list(
+        content_list=content_list,
+        file_path=json_file_path.as_posix(),
+        doc_id=doc_id,
+        display_stats=True,
+    )
     logger.info("✅ 内容列表插入完成!")
 
     # 5. 示例查询

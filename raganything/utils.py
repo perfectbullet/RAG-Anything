@@ -5,9 +5,39 @@ Contains helper functions for content separation, text insertion, and other util
 """
 
 import base64
+import hashlib
 from typing import Dict, List, Any, Tuple
 from pathlib import Path
 from lightrag.utils import logger
+
+
+def generate_doc_id_from_path(file_path: str | Path, prefix: str = "doc_", length: int = 12) -> str:
+    """
+    从文件路径生成唯一的 doc_id
+
+    相同的文件路径始终生成相同的 doc_id
+
+    Args:
+        file_path: 文件路径
+        prefix: doc_id 前缀，默认 "doc_"
+        length: hash 后缀长度，默认 12 位（约 281 万亿种组合，碰撞概率极低）
+
+    Returns:
+        str: 格式为 "{prefix}{hash}" 的 doc_id，例如 "doc_a1b2c3d4e5f6"
+
+    Example:
+        >>> generate_doc_id_from_path("data/test.json")
+        'doc_a1b2c3d4e5f6'
+        >>> generate_doc_id_from_path("/path/to/file.pdf", prefix="file_")
+        'file_1a2b3c4d5e6f'
+    """
+    path = Path(file_path)
+    # 使用绝对路径生成稳定的 hash
+    hash_input = str(path.resolve())
+
+    # MD5 hash 取前 N 位
+    hash_hex = hashlib.md5(hash_input.encode("utf-8")).hexdigest()[:length]
+    return f"{prefix}{hash_hex}"
 
 
 def separate_content(

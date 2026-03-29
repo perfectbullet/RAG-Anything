@@ -822,6 +822,120 @@ class QueryMixin:
             self.logger.error(f"VLM call failed: {e}")
             raise
 
+    async def aquery_stream_with_sources(
+        self,
+        query: str,
+        mode: str = "mix",
+        system_prompt: str | None = None,
+        **kwargs,
+    ):
+        """
+        Streaming query with retrieval data (sources)
+
+        Streams answer content in real-time while providing complete retrieval
+        data (entities, relationships, chunks, references) for frontend display.
+
+        Args:
+            query: Query text
+            mode: Query mode ("local", "global", "hybrid", "naive", "mix", "bypass")
+            system_prompt: Optional system prompt to include
+            **kwargs: Other query parameters passed to QueryParam
+
+        Yields:
+            Dict[str, Any]: Streaming data chunks
+                - type: "sources_info" | "chunk" | "sources" | "error"
+                - content: str | Dict (text chunk or source data)
+
+        Example:
+            >>> async for chunk in rag.aquery_stream_with_sources("什么是集合？"):
+            ...     if chunk["type"] == "chunk":
+            ...         print(chunk["content"], end="", flush=True)
+            ...     elif chunk["type"] == "sources":
+            ...         print(f"\\n\\n来源: {chunk['content']}")
+        """
+        await self._ensure_lightrag_initialized()
+
+        if self.lightrag is None:
+            raise ValueError("No LightRAG instance available")
+
+        callback_manager = getattr(self, "callback_manager", None)
+        query_start_time = time.time()
+
+        if callback_manager:
+            callback_manager.dispatch("on_query_start", query=query, mode=mode)
+
+        query_param = QueryParam(
+            mode=mode,
+            stream=True,
+            top_k=kwargs.get("top_k", 20),
+            chunk_top_k=kwargs.get("chunk_top_k", 10),
+            enable_rerank=kwargs.get("enable_rerank", True),
+            **{
+                k: v
+                for k, v in kwargs.items()
+                if k not in ["top_k", "chunk_top_k", "enable_rerank"]
+            },
+        )
+
+        self.logger.info(f"Executing streaming query: {query[:100]}...")
+
+        try:
+            result = await self.lightrag.aquery_llm(
+                query, param=query_param, system_prompt=system_prompt
+            )
+
+            # Get retrieval data
+            retrieval_data = result.get("data", {})
+            sources = {
+                "entities": retrieval_data.get("entities", []),
+                "relationships": retrieval_data.get("relationships", []),
+                "chunks": retrieval_data.get("chunks", []),
+                "references": retrieval_data.get("references", []),
+                "metadata": result.get("metadata", {}),
+            }
+
+            # First, yield sources summary info
+            yield {
+                "type": "sources_info",
+                "content": {
+                    "entities_count": len(sources["entities"]),
+                    "relationships_count": len(sources["relationships"]),
+                    "chunks_count": len(sources["chunks"]),
+                },
+            }
+
+            # Stream answer content
+            llm_response = result.get("llm_response", {})
+            response_iterator = llm_response.get("response_iterator")
+
+            if response_iterator:
+                async for content_chunk in response_iterator:
+                    yield {"type": "chunk", "content": content_chunk}
+            else:
+                # If no iterator, return full content as single chunk
+                yield {"type": "chunk", "content": llm_response.get("content", "")}
+
+            # At the end, yield complete sources data
+            yield {"type": "sources", "content": sources}
+
+        except Exception as exc:
+            if callback_manager:
+                callback_manager.dispatch(
+                    "on_query_error", query=query, mode=mode, error=exc
+                )
+            yield {"type": "error", "content": str(exc)}
+            raise
+
+        finally:
+            if callback_manager:
+                duration = time.time() - query_start_time
+                callback_manager.dispatch(
+                    "on_query_complete",
+                    query=query,
+                    mode=mode,
+                    duration_seconds=duration,
+                )
+
     # Synchronous versions of query methods
     def query(self, query: str, mode: str = "mix", **kwargs) -> str:
         """
