@@ -38,8 +38,7 @@ import os
 import asyncio
 import logging
 import logging.config
-import contextlib
-import io
+
 from pathlib import Path
 from typing import Dict, Any
 
@@ -305,10 +304,11 @@ async def demo_streaming_query():
 
     # 4. 测试查询
     queries = [
-        "在集合中有哪些常用的术语？",
-        "数学必修第一册包含哪些内容？",
-        "北京今天天气怎么样",
-        "请简单给我介绍集合的概念"
+        # "在集合中有哪些常用的术语？",
+        # "数学必修第一册包含哪些内容？",
+        # "北京今天天气怎么样",
+        # "请简单给我介绍集合的概念",
+        "怎么样毒死一只老鼠"
     ]
 
     for query in queries:
