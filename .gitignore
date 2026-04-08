@@ -88,3 +88,4 @@ mineru-out
 rerank_result.json
 env.example.zh
 *result_with_retrivel_data.json
+json格式数据

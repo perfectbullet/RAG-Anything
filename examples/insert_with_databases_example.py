@@ -45,7 +45,7 @@ import logging.config
 import contextlib
 import io
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # Add project root directory to Python path
 import sys
@@ -59,6 +59,15 @@ from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc, logger, set_verbose_debug
 from raganything import RAGAnything, RAGAnythingConfig
 from raganything.utils import generate_doc_id_from_path
+from raganything.content_list_v2_splitter import ContentListV2Splitter
+from raganything.utils import (
+    validate_required_env_vars,
+    get_required_env,
+    load_content_list_v2,
+    ContentProcessingProgressTracker,
+    RetryConfig,
+    ProgressMessage,
+)
 
 # Load .env file
 load_dotenv(dotenv_path=str(Path(__file__).parent.parent / ".env"), override=False)
@@ -93,28 +102,8 @@ REQUIRED_ENV_VARS = {
 }
 
 
-def validate_required_env():
-    """验证所有必需的环境变量是否已配置"""
-    missing_vars = []
-    for var_name, description in REQUIRED_ENV_VARS.items():
-        value = os.getenv(var_name)
-        if value is None or value.strip() == "":
-            missing_vars.append(f"  - {var_name}: {description}")
-
-    if missing_vars:
-        error_msg = "❌ 缺少必需的环境变量配置:\n\n" + "\n".join(missing_vars)
-        error_msg += f"\n\n请在 .env 文件中配置以上变量后再运行。"
-        raise ValueError(error_msg)
-
-    logger.info("✅ 环境变量配置验证通过")
-
-
-def get_required_env(var_name: str) -> str:
-    """获取必需的环境变量，如果不存在则报错"""
-    value = os.getenv(var_name)
-    if value is None or value.strip() == "":
-        raise ValueError(f"缺少必需的环境变量: {var_name}")
-    return value.strip()
+# Validate environment using utility function
+validate_required_env_vars(REQUIRED_ENV_VARS)
 
 
 # =============================================================================
@@ -218,11 +207,11 @@ async def llm_model_func(
 ) -> str:
     """OpenAI兼容API的LLM函数"""
     return await openai_complete_if_cache(
-        get_required_env("OLLAMA_MODEL"),
+        get_required_env("OPENAI_MODEL"),
         prompt,
         system_prompt=system_prompt,
         history_messages=history_messages or [],
-        base_url=get_required_env("OLLAMA_BASE_URL"),
+        base_url=get_required_env("OPENAI_API_BASE"),
         api_key=get_required_env("OPENAI_API_KEY"),
         **kwargs,
     )
@@ -353,47 +342,266 @@ def get_embedding_func():
 
 
 # =============================================================================
-# 测试数据加载 
+# 测试数据加载
 # =============================================================================
-def load_test_content_list():
+def load_test_content_list(data_dir: str):
     """
-    从现有 content_list.json 加载测试数据并处理 img_path
+    从指定目录加载 content_list_v2.json 测试数据并处理图片路径
+
+    Args:
+        data_dir: 数据目录路径
+                 - 指定目录: 自动在该目录下查找 *_content_list_v2.json 文件
 
     Returns:
-        List[Dict]: 处理后的 content_list，img_path 已转换为绝对路径
+        tuple: (content_list_v2, json_path) - 处理后的 content_list_v2 和 json 文件路径
     """
-    vlm_base_dir = Path("mineru-out/data/03高中数学选择性必修第一册")
-    json_path = vlm_base_dir / "03高中数学选择性必修第一册_content_list.json"
+    # 使用新的 utility 函数
+    return load_content_list_v2(data_dir)
 
-    if not json_path.exists():
-        raise FileNotFoundError(f"测试数据文件不存在: {json_path}")
 
-    logger.info(f"📂 加载测试数据: {json_path}")
+# =============================================================================
+# 进度跟踪管理（断点续传）
+# =============================================================================
+class ProgressTracker:
+    """处理进度跟踪器，支持断点续传 - 使用新的 utility class"""
 
-    with open(json_path, "r", encoding="utf-8") as f:
-        content_list = json.load(f)
+    def __init__(self, progress_file: Optional[str] = None):
+        """
+        Args:
+            progress_file: 进度文件路径，默认为 ./insert_progress.json
+        """
+        self.tracker = ContentProcessingProgressTracker(progress_file)
 
-    # 修复 img_path 相对路径
-    image_count = 0
-    for item in content_list:
-        if item.get("type") == "image" and "img_path" in item:
-            img_path = item["img_path"]
-            # 如果是相对路径，拼接为绝对路径
-            if not os.path.isabs(img_path):
-                item["img_path"] = str(vlm_base_dir / img_path)
-                image_count += 1
+    def _load_progress(self) -> dict:
+        """加载进度文件"""
+        if Path(self.tracker_file).exists():
+            try:
+                with open(self.tracker_file, 'r', encoding='utf-8') as f:
+                    progress = json.load(f)
+                logger.info(f"📂 加载进度文件: {self.tracker_file}")
+                started_count = len(progress.get('started', []))
+                completed_count = len(progress.get('completed', []))
+                failed_count = len(progress.get('failed', []))
+                logger.info(f"   上次处理: {started_count} 个进行中, {completed_count} 个已完成, {failed_count} 个失败")
+                return progress
+            except Exception as e:
+                logger.warning(f"⚠️  加载进度文件失败: {e}，将创建新文件")
+                return {"started": [], "completed": [], "failed": [], "document_info": {}}
+        return {"started": [], "completed": [], "failed": [], "document_info": {}}
 
-    # 统计内容类型
-    type_counts = {}
-    for item in content_list:
-        t = item.get("type", "unknown")
-        type_counts[t] = type_counts.get(t, 0) + 1
+    def _save_progress(self):
+        """保存进度文件"""
+        try:
+            with open(self.tracker_file, 'w', encoding='utf-8') as f:
+                json.dump(self.tracker, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"⚠️  保存进度文件失败: {e}")
 
-    logger.info(f"✅ 加载了 {len(content_list)} 条测试内容")
-    logger.info(f"📊 内容类型统计: {type_counts}")
-    logger.info(f"🖼️  修复了 {image_count} 个图像路径")
+    def set_document_info(self, file_path: str, total_sections: int):
+        """设置文档信息"""
+        self.tracker["document_info"] = {
+            "file_path": file_path,
+            "total_sections": total_sections,
+            "last_update": str(Path(__file__).stat().st_mtime) if Path(__file__).exists() else None,
+        }
+        self._save_progress()
 
-    return content_list, json_path
+    def is_started(self, doc_id: str) -> bool:
+        """检查是否已开始处理"""
+        return doc_id in self.tracker.get("started", [])
+
+    def is_completed(self, doc_id: str) -> bool:
+        """检查是否已完成"""
+        return doc_id in self.tracker.get("completed", [])
+
+    def mark_started(self, doc_id: str, title: Optional[str] = None):
+        """标记为开始处理"""
+        if "started" not in self.tracker:
+            self.tracker["started"] = []
+        if doc_id not in self.tracker["started"]:
+            self.tracker["started"].append(doc_id)
+            self._save_progress()
+            logger.info(f"  💾 已标记开始: {title or doc_id}")
+
+    def mark_completed(self, doc_id: str, title: Optional[str] = None):
+        """标记为已完成"""
+        if "completed" not in self.tracker:
+            self.tracker["completed"] = []
+        if doc_id not in self.tracker["completed"]:
+            self.tracker["completed"].append(doc_id)
+            # 从进行中列表移除
+            self.tracker["started"] = [d for d in self.tracker.get("started", []) if d != doc_id]
+            # 从失败列表中移除（如果之前失败过）
+            self.tracker["failed"] = [f for f in self.tracker.get("failed", []) if f["doc_id"] != doc_id]
+            self._save_progress()
+            logger.info(f"  💾 已标记完成: {title or doc_id}")
+
+    def mark_failed(self, doc_id: str, title: str, error: str, retry_count: int = 0, max_retries: int = 2):
+        """标记为失败"""
+        if "failed" not in self.tracker:
+            self.tracker["failed"] = []
+
+        # 更新或添加失败记录
+        failed_record = {
+            "doc_id": doc_id,
+            "title": title,
+            "error": error,
+            "retry_count": retry_count,
+            "max_retries": max_retries,
+            "last_failed": str(Path(__file__).stat().st_mtime) if Path(__file__).exists() else None,
+        }
+
+        # 从进行中列表移除
+        self.tracker["started"] = [d for d in self.tracker.get("started", []) if d != doc_id]
+        # 移除旧的失败记录（如果有）
+        self.tracker["failed"] = [f for f in self.tracker["failed"] if f["doc_id"] != doc_id]
+        self.tracker["failed"].append(failed_record)
+        self._save_progress()
+        logger.info(f"  💾 已记录失败: {title}")
+
+    def get_failed_sections(self) -> list:
+        """获取失败的section列表"""
+        return self.tracker.get("failed", [])
+
+    def get_summary(self) -> dict:
+        """获取进度摘要"""
+        total = self.tracker["document_info"].get("total_sections", 0)
+        started = len(self.tracker.get("started", []))
+        completed = len(self.tracker.get("completed", []))
+        failed = len(self.tracker.get("failed", []))
+        return {
+            "total": total,
+            "started": started,
+            "completed": completed,
+            "failed": failed,
+            "pending": total - completed,
+        }
+
+
+# =============================================================================
+# 按章节处理大文件
+# =============================================================================
+async def insert_large_file_with_splitter(
+    rag,
+    content_list_v2: list,
+    file_path: str,
+    doc_id_prefix: str,
+    max_retries: int = 2,
+    progress_file: Optional[str] = None,
+):
+    """
+    使用 ContentListV2Splitter 按小节处理大文件
+
+    支持断点续传和失败重试，使用JSON文件记录进度
+
+    Args:
+        rag: RAGAnything 实例
+        content_list_v2: v2 格式的 content_list (二维数组)
+        file_path: 文件路径
+        doc_id_prefix: doc_id 前缀
+        max_retries: 失败重试次数
+        progress_file: 进度文件路径，默认为 ./insert_progress.json
+
+    Returns:
+        dict: 处理结果 {"success": [], "failed": [], "skipped": []}
+    """
+    splitter = ContentListV2Splitter()
+
+    # 按小节拆分
+    sections = splitter.split_by_chapters(content_list_v2, doc_id_prefix)
+
+    # 初始化进度跟踪器
+    tracker = ProgressTracker(progress_file)
+    tracker.set_document_info(file_path, len(sections))
+
+    logger.info("\n" + "=" * 60)
+    logger.info(f"📚 检测到 {len(sections)} 个小节")
+    summary = tracker.get_summary()
+    if summary["started"] > 0 or summary["completed"] > 0 or summary["failed"] > 0:
+        logger.info(f"📊 进度: 进行中 {summary['started']}, 已完成 {summary['completed']}, 失败 {summary['failed']}, 待处理 {summary['pending']}")
+    logger.info("=" * 60)
+
+    results = {"success": [], "failed": [], "skipped": []}
+
+    for idx, section in enumerate(sections, 1):
+        title = section['title']
+        doc_id = section['doc_id']
+        content = section['content']
+        page_range = section['page_range']
+
+        # 检查是否已完成（通过进度文件）
+        if tracker.is_completed(doc_id):
+            logger.info(f"\n小节 {idx}/{len(sections)}: {title}")
+            logger.info(f"  ⏭️  已完成（进度文件），跳过")
+            results["skipped"].append(doc_id)
+            continue
+
+        logger.info(f"\n小节 {idx}/{len(sections)}: {title}")
+        logger.info(f"  页码: {page_range[0]}-{page_range[1]}")
+        logger.info(f"  内容: {len(content)} items")
+        logger.info(f"  doc_id: {doc_id}")
+
+        # 如果是进行中状态（上次可能中断），先删除旧数据再重新处理
+        if tracker.is_started(doc_id):
+            logger.warning(f"  {ProgressMessage.FAILED} 上次处理未完成，将删除旧数据后重新处理")
+            try:
+                await rag.adelete_by_doc_id(doc_id)
+            except Exception as e:
+                logger.warning(f"  ⚠️  删除旧数据失败（可能不存在）: {e}")
+
+        # 标记为开始处理
+        tracker.mark_started(doc_id, title)
+
+        # 重试逻辑
+        for retry in range(max_retries + 1):
+            try:
+                
+                await rag.insert_content_list(
+                    content_list=content,
+                    file_path=file_path,
+                    doc_id=doc_id,
+                    display_stats=False,
+                )
+                logger.info(f"  ✅ 完成")
+                tracker.mark_completed(doc_id, title)
+                results["success"].append(doc_id)
+                break
+            except Exception as e:
+                if retry < max_retries:
+                    wait_time = (retry + 1) * 5
+                    logger.warning(f"  ⚠️  失败: {e}")
+                    logger.info(f"     {wait_time}秒后重试 ({retry + 1}/{max_retries})...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"  ❌ 最终失败: {e}")
+                    tracker.mark_failed(doc_id, title, str(e), retry, max_retries)
+                    results["failed"].append({"doc_id": doc_id, "title": title, "error": str(e)})
+
+    # 最终汇总
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 处理汇总:")
+    logger.info(f"  ✅ 成功: {len(results['success'])} 个小节")
+    logger.info(f"  ⏭️  跳过: {len(results['skipped'])} 个小节")
+    logger.info(f"  ❌ 失败: {len(results['failed'])} 个小节")
+
+    # 显示进度文件摘要
+    final_summary = tracker.get_summary()
+    logger.info(f"\n📂 进度文件摘要 ({tracker.progress_file}):")
+    logger.info(f"  总数: {final_summary['total']}")
+    logger.info(f"  进行中: {final_summary['started']}")
+    logger.info(f"  已完成: {final_summary['completed']}")
+    logger.info(f"  失败: {final_summary['failed']}")
+    logger.info(f"  待处理: {final_summary['pending']}")
+
+    if results["failed"]:
+        logger.warning(f"\n本次失败的小节:")
+        for f in results["failed"]:
+            logger.warning(f"  - {f.get('title', f['doc_id'])}: {f.get('error', 'Unknown error')[:100]}")
+
+    logger.info(f"\n💡 下次运行将自动跳过已完成的小节，并重试失败的小节")
+    logger.info(f"   如需重新开始，请删除进度文件: {tracker.progress_file}")
+
+    return results
 
 
 # =============================================================================
@@ -407,7 +615,7 @@ async def main():
 
     # 1. 验证环境变量配置
     print("\n🔍 验证环境变量配置...")
-    validate_required_env()
+    validate_required_env_vars(REQUIRED_ENV_VARS)
 
     # 2. 配置 RAGAnythingConfig
     config = RAGAnythingConfig(
@@ -464,21 +672,59 @@ async def main():
         },
     )
 
-    # 4. 插入内容列表
-    logger.info("\n📝 插入内容列表到数据库...")
-    content_list, json_file_path = load_test_content_list()
-    # 从文件路径自动生成唯一的 doc_id
-    doc_id = generate_doc_id_from_path(json_file_path)
-    logger.info(f"📋 生成的 doc_id: {doc_id}")
-    await rag.insert_content_list(
-        content_list=content_list,
-        file_path=json_file_path.as_posix(),
-        doc_id=doc_id,
-        display_stats=True,
-    )
-    logger.info("✅ 内容列表插入完成!")
+    # 3.5. 初始化 lightrag（执行简单查询触发初始化）
+    logger.info("\n🔧 初始化 LightRAG...")
+    try:
+        await rag.aquery("test", mode="hybrid")
+        logger.info(f"{ProgressMessage.COMPLETED} LightRAG 初始化完成")
+    except Exception as e:
+        logger.warning(f"⚠️  查询初始化失败（可能没有数据）: {e}")
 
-    # 5. 示例查询
+    # 4. 清理指定的 doc_id 数据（在插入前执行）
+    doc_ids_to_delete = [
+        "doc_8094aed9b242_ch1_4_1_数列的概念_",
+        "doc_8094aed9b242_ch1_4_1_数列的概念",
+        # "doc_5b2f581e3111_ch2_第五章",
+        # "doc_8116ee00c78b",
+    ]
+
+    if doc_ids_to_delete:
+        logger.info("\n🗑️  清理指定的 doc_id 数据...")
+        for doc_id in doc_ids_to_delete:
+            try:
+                result = await rag.lightrag.adelete_by_doc_id(doc_id)
+                logger.info(f"  ✅ 删除 {doc_id}: {result}")
+            except Exception as e:
+                logger.warning(f"  ⚠️  删除 {doc_id} 失败: {e}")
+
+    # 5. 插入内容列表 - 使用小节拆分器处理大文件
+    logger.info("📝 插入内容列表到数据库（使用小节拆分器）...")
+    content_list_v2, json_file_path = load_test_content_list('/data/metahuman_work/ZengKingMorphe/Digital-Human-Disciplinary-Dataset/高中数学相关资料内容/math-data-v1/04高中数学选择性必修第二册/vlm/')
+
+    # 生成 doc_id 前缀
+    doc_id_prefix = generate_doc_id_from_path(json_file_path)
+    logger.info(f"📋 doc_id 前缀: {doc_id_prefix}")
+
+    # 使用拆分器按小节处理
+    results = await insert_large_file_with_splitter(
+        rag=rag,
+        content_list_v2=content_list_v2,
+        file_path=json_file_path.as_posix(),
+        doc_id_prefix=doc_id_prefix,
+        max_retries=2,
+    )
+
+    logger.info(f"{ProgressMessage.COMPLETED} 内容列表插入完成!")
+
+    # 显示处理结果
+    if results["success"]:
+        logger.info(f"✅ 成功插入 {len(results['success'])} 个小节")
+    if results["skipped"]:
+        logger.info(f"⏭️  跳过 {len(results['skipped'])} 个已存在小节")
+    if results["failed"]:
+        logger.warning(f"❌ {len(results['failed'])} 个小节处理失败")
+
+    # 6. 示例查询
     logger.info("\n🔍 执行示例查询...")
     test_queries = [
         "数学必修第一册包含哪些内容？",
@@ -497,7 +743,7 @@ async def main():
         logger.info(f"\n[回答]:\n{result}")
 
     logger.info("\n" + "=" * 70)
-    logger.info("✅ 示例执行完成!")
+    logger.info(f"{ProgressMessage.COMPLETED} 示例执行完成!")
     logger.info("=" * 70)
 
 
