@@ -57,7 +57,7 @@ echo "服务器:   $SERVER_HOST:$SERVER_PATH"
 echo ""
 
 # 构建 rsync 命令
-RSYNC_CMD="rsync -avz"
+RSYNC_CMD="rsync -avz --progress"
 
 if [ "$DRY_RUN" = true ]; then
     RSYNC_CMD="$RSYNC_CMD --dry-run"
