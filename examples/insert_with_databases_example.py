@@ -74,6 +74,78 @@ load_dotenv(dotenv_path=str(Path(__file__).parent.parent / ".env"), override=Fal
 
 
 # =============================================================================
+# 错误类型检测和智能延迟
+# =============================================================================
+def is_rate_limit_error(error: Exception) -> bool:
+    """检测是否为速率限制错误（429、TPM/RPM限制等）"""
+    error_str = str(error).lower()
+    error_type = type(error).__name__.lower()
+
+    rate_limit_indicators = [
+        'rate limit', 'ratelimit', 'rate_limit',
+        '429', 'too many requests',
+        'tpm limit', 'rpm limit',
+        'quota exceeded', 'quota_exceeded',
+    ]
+
+    return any(indicator in error_str or indicator in error_type
+               for indicator in rate_limit_indicators)
+
+
+def is_timeout_error(error: Exception) -> bool:
+    """检测是否为超时错误"""
+    error_str = str(error).lower()
+    error_type = type(error).__name__.lower()
+
+    timeout_indicators = [
+        'timeout', 'timed out', 'time out',
+        'readtimeout', 'connecttimeout',
+        'async timeout', 'timeouterror',
+        'gateway timeout', '504',
+    ]
+
+    return any(indicator in error_str or indicator in error_type
+               for indicator in timeout_indicators)
+
+
+def calculate_smart_delay(
+    retry: int,
+    error: Exception,
+    base_delay: int = 5,
+    rate_limit_multiplier: float = 3.0,
+    timeout_multiplier: float = 2.0,
+    max_delay: int = 120
+) -> int:
+    """
+    计算智能重试延迟时间
+
+    Args:
+        retry: 当前重试次数（从0开始）
+        error: 捕获的异常
+        base_delay: 基础延迟时间（秒）
+        rate_limit_multiplier: 速率限制错误的延迟倍数
+        timeout_multiplier: 超时错误的延迟倍数
+        max_delay: 最大延迟时间（秒）
+
+    Returns:
+        计算后的延迟时间（秒）
+    """
+    # 基础延迟：指数增长
+    delay = base_delay * (2 ** retry)
+
+    # 根据错误类型调整延迟
+    if is_rate_limit_error(error):
+        delay *= rate_limit_multiplier
+        logger.warning(f"🚦 检测到速率限制错误，延迟增加到 {delay:.0f} 秒")
+    elif is_timeout_error(error):
+        delay *= timeout_multiplier
+        logger.warning(f"⏱️  检测到超时错误，延迟增加到 {delay:.0f} 秒")
+
+    # 限制最大延迟
+    return min(int(delay), max_delay)
+
+
+# =============================================================================
 # 配置验证
 # =============================================================================
 REQUIRED_ENV_VARS = {
@@ -149,7 +221,7 @@ def configure_logging():
     log_backup_count = int(os.getenv("LOG_BACKUP_COUNT", "5"))
 
     # 创建日志过滤器
-    long_data_filter = LongDataFilter(max_length=200)
+    # long_data_filter = LongDataFilter(max_length=200)
 
     logging.config.dictConfig(
         {
@@ -488,6 +560,7 @@ async def insert_large_file_with_splitter(
     doc_id_prefix: str,
     max_retries: int = 2,
     progress_file: Optional[str] = None,
+    batch_delay: float = 1.0,
 ):
     """
     使用 ContentListV2Splitter 按小节处理大文件
@@ -542,12 +615,12 @@ async def insert_large_file_with_splitter(
         logger.info(f"  doc_id: {doc_id}")
 
         # 如果是进行中状态（上次可能中断），先删除旧数据再重新处理
-        if tracker.is_started(doc_id):
-            logger.warning(f"  {ProgressMessage.FAILED} 上次处理未完成，将删除旧数据后重新处理")
-            try:
-                await rag.adelete_by_doc_id(doc_id)
-            except Exception as e:
-                logger.warning(f"  ⚠️  删除旧数据失败（可能不存在）: {e}")
+        # if tracker.is_started(doc_id):
+        #     logger.warning(f"  {ProgressMessage.FAILED} 上次处理未完成，将删除旧数据后重新处理")
+        #     try:
+        #         await rag.adelete_by_doc_id(doc_id)
+        #     except Exception as e:
+        #         logger.warning(f"  ⚠️  删除旧数据失败（可能不存在）: {e}")
 
         # 标记为开始处理
         tracker.mark_started(doc_id, title)
@@ -555,7 +628,7 @@ async def insert_large_file_with_splitter(
         # 重试逻辑
         for retry in range(max_retries + 1):
             try:
-                
+
                 await rag.insert_content_list(
                     content_list=content,
                     file_path=file_path,
@@ -568,7 +641,15 @@ async def insert_large_file_with_splitter(
                 break
             except Exception as e:
                 if retry < max_retries:
-                    wait_time = (retry + 1) * 5
+                    # 使用智能延迟策略
+                    wait_time = calculate_smart_delay(
+                        retry=retry,
+                        error=e,
+                        base_delay=5,
+                        rate_limit_multiplier=3.0,
+                        timeout_multiplier=2.0,
+                        max_delay=120
+                    )
                     logger.warning(f"  ⚠️  失败: {e}")
                     logger.info(f"     {wait_time}秒后重试 ({retry + 1}/{max_retries})...")
                     await asyncio.sleep(wait_time)
@@ -576,6 +657,11 @@ async def insert_large_file_with_splitter(
                     logger.error(f"  ❌ 最终失败: {e}")
                     tracker.mark_failed(doc_id, title, str(e), retry, max_retries)
                     results["failed"].append({"doc_id": doc_id, "title": title, "error": str(e)})
+
+    # 批处理延迟 - 避免API速率限制
+        if idx % 10 == 0 and idx < len(sections) - 1:
+            logger.info(f"  ⏱️  批处理延迟 {batch_delay}秒...")
+            await asyncio.sleep(batch_delay)
 
     # 最终汇总
     logger.info("\n" + "=" * 60)
@@ -680,23 +766,6 @@ async def main():
     except Exception as e:
         logger.warning(f"⚠️  查询初始化失败（可能没有数据）: {e}")
 
-    # 4. 清理指定的 doc_id 数据（在插入前执行）
-    doc_ids_to_delete = [
-        "doc_8094aed9b242_ch1_4_1_数列的概念_",
-        "doc_8094aed9b242_ch1_4_1_数列的概念",
-        # "doc_5b2f581e3111_ch2_第五章",
-        # "doc_8116ee00c78b",
-    ]
-
-    if doc_ids_to_delete:
-        logger.info("\n🗑️  清理指定的 doc_id 数据...")
-        for doc_id in doc_ids_to_delete:
-            try:
-                result = await rag.lightrag.adelete_by_doc_id(doc_id)
-                logger.info(f"  ✅ 删除 {doc_id}: {result}")
-            except Exception as e:
-                logger.warning(f"  ⚠️  删除 {doc_id} 失败: {e}")
-
     # 5. 插入内容列表 - 使用小节拆分器处理大文件
     logger.info("📝 插入内容列表到数据库（使用小节拆分器）...")
     content_list_v2, json_file_path = load_test_content_list('/data/metahuman_work/ZengKingMorphe/Digital-Human-Disciplinary-Dataset/高中数学相关资料内容/math-data-v1/04高中数学选择性必修第二册/vlm/')
@@ -712,6 +781,7 @@ async def main():
         file_path=json_file_path.as_posix(),
         doc_id_prefix=doc_id_prefix,
         max_retries=2,
+        batch_delay=2.0,  # 批处理间延迟2秒，避免API速率限制
     )
 
     logger.info(f"{ProgressMessage.COMPLETED} 内容列表插入完成!")
