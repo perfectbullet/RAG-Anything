@@ -229,6 +229,11 @@ class KnowledgeBaseQuery:
             embedding_func=get_embedding_func(),
             lightrag_kwargs={
                 "rerank_model_func": vllm_reranker_func,
+                # 语言配置
+                "addon_params": {
+                    "language": "Chinese",  # 知识图谱构建和查询的语言
+                    "entity_types": ["organization", "person", "location", "event", "concept", "method"]
+                },
             },
         )
 

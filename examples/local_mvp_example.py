@@ -288,6 +288,11 @@ class LocalRAGMVP:
                 # 减少并发处理数量 - 避免Ollama过载
                 "llm_model_max_async": 2,  # 默认4
                 "max_parallel_insert": 1,  # 默认2
+                # 语言配置
+                "addon_params": {
+                    "language": "Chinese",  # 知识图谱构建和查询的语言
+                    "entity_types": ["organization", "person", "location", "event", "concept", "method"]
+                },
             },
         )
 

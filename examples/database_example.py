@@ -137,6 +137,12 @@ async def main():
             # os.environ["NEO4J_URI"] = "bolt://localhost:7687"
             # os.environ["NEO4J_USERNAME"] = "neo4j"
             # os.environ["NEO4J_PASSWORD"] = "neo4j_password_123"
+
+            # 语言配置
+            "addon_params": {
+                "language": "Chinese",  # 知识图谱构建和查询的语言
+                "entity_types": ["organization", "person", "location", "event", "concept", "method"]
+            },
         }
     )
 

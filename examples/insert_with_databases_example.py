@@ -755,6 +755,11 @@ async def main():
             # LightRAG 配置 (注意: 使用 cosine_better_than_threshold 而不是 cosine_threshold)
             "cosine_better_than_threshold": 0.5,  # 向量相似度阈值
             "min_rerank_score": 0.3,  # 过滤 rerank 分数低于 0.2 的 chunks
+            # 语言配置
+            "addon_params": {
+                "language": "Chinese",  # 知识图谱构建和查询的语言
+                "entity_types": ["organization", "person", "location", "event", "concept", "method"]
+            },
         },
     )
 

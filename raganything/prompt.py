@@ -13,341 +13,341 @@ PROMPTS: dict[str, Any] = {}
 
 # System prompts for different analysis types
 PROMPTS["IMAGE_ANALYSIS_SYSTEM"] = (
-    "You are an expert image analyst. Provide detailed, accurate descriptions."
+    "你是一位专业的图像分析师。请提供详细、准确的描述。"
 )
 PROMPTS["IMAGE_ANALYSIS_FALLBACK_SYSTEM"] = (
-    "You are an expert image analyst. Provide detailed analysis based on available information."
+    "你是一位专业的图像分析师。请根据可用信息提供详细分析。"
 )
 PROMPTS["TABLE_ANALYSIS_SYSTEM"] = (
-    "You are an expert data analyst. Provide detailed table analysis with specific insights."
+    "你是一位专业的数据分析师。请提供详细的表格分析和具体见解。"
 )
 PROMPTS["EQUATION_ANALYSIS_SYSTEM"] = (
-    "You are an expert mathematician. Provide detailed mathematical analysis."
+    "你是一位专业的数学分析师。请提供详细的数学分析。"
 )
 PROMPTS["GENERIC_ANALYSIS_SYSTEM"] = (
-    "You are an expert content analyst specializing in {content_type} content."
+    "你是一位专业的内容分析师，擅长分析 {content_type} 类型的内容。"
 )
 
 # Image analysis prompt template
 PROMPTS[
     "vision_prompt"
-] = """Please analyze this image in detail and provide a JSON response with the following structure:
+] = """请详细分析此图像并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive and detailed visual description of the image following these guidelines:
-    - Describe the overall composition and layout
-    - Identify all objects, people, text, and visual elements
-    - Explain relationships between elements
-    - Note colors, lighting, and visual style
-    - Describe any actions or activities shown
-    - Include technical details if relevant (charts, diagrams, etc.)
-    - Always use specific names instead of pronouns",
+    "detailed_description": "图像的综合详细描述，遵循以下准则：
+    - 描述整体构图和布局
+    - 识别所有对象、人物、文本和视觉元素
+    - 解释元素之间的关系
+    - 注意颜色、光照和视觉风格
+    - 描述显示的任何动作或活动
+    - 包含相关技术细节（如图表、图表等）
+    - 始终使用具体名称而非代词",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "image",
-        "summary": "concise summary of the image content and its significance (max 100 words)"
+        "summary": "图像内容及其重要性的简洁总结（最多100字）"
     }}
 }}
 
-Additional context:
-- Image Path: {image_path}
-- Captions: {captions}
-- Footnotes: {footnotes}
+附加信息：
+- 图像路径：{image_path}
+- 标题：{captions}
+- 注释：{footnotes}
 
-Focus on providing accurate, detailed visual analysis that would be useful for knowledge retrieval."""
+专注于提供准确、详细的视觉分析，以便于知识检索。"""
 
 # Image analysis prompt with context support
 PROMPTS[
     "vision_prompt_with_context"
-] = """Please analyze this image in detail, considering the surrounding context. Provide a JSON response with the following structure:
+] = """请结合周围上下文详细分析此图像，并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive and detailed visual description of the image following these guidelines:
-    - Describe the overall composition and layout
-    - Identify all objects, people, text, and visual elements
-    - Explain relationships between elements and how they relate to the surrounding context
-    - Note colors, lighting, and visual style
-    - Describe any actions or activities shown
-    - Include technical details if relevant (charts, diagrams, etc.)
-    - Reference connections to the surrounding content when relevant
-    - Always use specific names instead of pronouns",
+    "detailed_description": "图像的综合详细描述，遵循以下准则：
+    - 描述整体构图和布局
+    - 识别所有对象、人物、文本和视觉元素
+    - 解释元素之间的关系及其与周围上下文的联系
+    - 注意颜色、光照和视觉风格
+    - 描述显示的任何动作或活动
+    - 包含相关技术细节（如图表、图表等）
+    - 在相关时引用与周围内容的联系
+    - 始终使用具体名称而非代词",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "image",
-        "summary": "concise summary of the image content, its significance, and relationship to surrounding content (max 100 words)"
+        "summary": "图像内容、其重要性及与周围内容关系的简洁总结（最多100字）"
     }}
 }}
 
-Context from surrounding content:
+来自周围内容的上下文：
 {context}
 
-Image details:
-- Image Path: {image_path}
-- Captions: {captions}
-- Footnotes: {footnotes}
+图像详情：
+- 图像路径：{image_path}
+- 标题：{captions}
+- 注释：{footnotes}
 
-Focus on providing accurate, detailed visual analysis that incorporates the context and would be useful for knowledge retrieval."""
+专注于提供准确、详细的视觉分析，并融入上下文，以便于知识检索。"""
 
 # Image analysis prompt with text fallback
-PROMPTS["text_prompt"] = """Based on the following image information, provide analysis:
+PROMPTS["text_prompt"] = """根据以下图像信息，提供分析：
 
-Image Path: {image_path}
-Captions: {captions}
-Footnotes: {footnotes}
+图像路径：{image_path}
+标题：{captions}
+注释：{footnotes}
 
 {vision_prompt}"""
 
 # Table analysis prompt template
 PROMPTS[
     "table_prompt"
-] = """Please analyze this table content and provide a JSON response with the following structure:
+] = """请分析此表格内容并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive analysis of the table including:
-    - Table structure and organization
-    - Column headers and their meanings
-    - Key data points and patterns
-    - Statistical insights and trends
-    - Relationships between data elements
-    - Significance of the data presented
-    Always use specific names and values instead of general references.",
+    "detailed_description": "表格的综合分析，包括：
+    - 表格结构和组织
+    - 列标题及其含义
+    - 关键数据点和模式
+    - 统计见解和趋势
+    - 数据元素之间的关系
+    - 所呈现数据的重要性
+    始终使用具体名称和数值，而非通用引用。",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "table",
-        "summary": "concise summary of the table's purpose and key findings (max 100 words)"
+        "summary": "表格用途和关键发现的简洁总结（最多100字）"
     }}
 }}
 
-Table Information:
-Image Path: {table_img_path}
-Caption: {table_caption}
-Body: {table_body}
-Footnotes: {table_footnote}
+表格信息：
+图像路径：{table_img_path}
+标题：{table_caption}
+内容：{table_body}
+注释：{table_footnote}
 
-Focus on extracting meaningful insights and relationships from the tabular data."""
+专注于从表格数据中提取有意义的见解和关系。"""
 
 # Table analysis prompt with context support
 PROMPTS[
     "table_prompt_with_context"
-] = """Please analyze this table content considering the surrounding context, and provide a JSON response with the following structure:
+] = """请结合周围上下文分析此表格内容，并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive analysis of the table including:
-    - Table structure and organization
-    - Column headers and their meanings
-    - Key data points and patterns
-    - Statistical insights and trends
-    - Relationships between data elements
-    - Significance of the data presented in relation to surrounding context
-    - How the table supports or illustrates concepts from the surrounding content
-    Always use specific names and values instead of general references.",
+    "detailed_description": "表格的综合分析，包括：
+    - 表格结构和组织
+    - 列标题及其含义
+    - 关键数据点和模式
+    - 统计见解和趋势
+    - 数据元素之间的关系
+    - 所呈现数据相对于周围上下文的重要性
+    - 表格如何支持或说明周围内容中的概念
+    始终使用具体名称和数值，而非通用引用。",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "table",
-        "summary": "concise summary of the table's purpose, key findings, and relationship to surrounding content (max 100 words)"
+        "summary": "表格用途、关键发现及其与周围内容关系的简洁总结（最多100字）"
     }}
 }}
 
-Context from surrounding content:
+来自周围内容的上下文：
 {context}
 
-Table Information:
-Image Path: {table_img_path}
-Caption: {table_caption}
-Body: {table_body}
-Footnotes: {table_footnote}
+表格信息：
+图像路径：{table_img_path}
+标题：{table_caption}
+内容：{table_body}
+注释：{table_footnote}
 
-Focus on extracting meaningful insights and relationships from the tabular data in the context of the surrounding content."""
+专注于在周围内容的背景下，从表格数据中提取有意义的见解和关系。"""
 
 # Equation analysis prompt template
 PROMPTS[
     "equation_prompt"
-] = """Please analyze this mathematical equation and provide a JSON response with the following structure:
+] = """请分析此数学公式并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive analysis of the equation including:
-    - Mathematical meaning and interpretation
-    - Variables and their definitions
-    - Mathematical operations and functions used
-    - Application domain and context
-    - Physical or theoretical significance
-    - Relationship to other mathematical concepts
-    - Practical applications or use cases
-    Always use specific mathematical terminology.",
+    "detailed_description": "公式的综合分析，包括：
+    - 数学含义和解释
+    - 变量及其定义
+    - 使用的数学运算和函数
+    - 应用领域和上下文
+    - 物理或理论意义
+    - 与其他数学概念的关系
+    - 实际应用或用例
+    始终使用具体的数学术语。",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "equation",
-        "summary": "concise summary of the equation's purpose and significance (max 100 words)"
+        "summary": "公式用途及其重要性的简洁总结（最多100字）"
     }}
 }}
 
-Equation Information:
-Equation: {equation_text}
-Format: {equation_format}
+公式信息：
+公式：{equation_text}
+格式：{equation_format}
 
-Focus on providing mathematical insights and explaining the equation's significance."""
+专注于提供数学见解并解释公式的重要性。"""
 
 # Equation analysis prompt with context support
 PROMPTS[
     "equation_prompt_with_context"
-] = """Please analyze this mathematical equation considering the surrounding context, and provide a JSON response with the following structure:
+] = """请结合周围上下文分析此数学公式，并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive analysis of the equation including:
-    - Mathematical meaning and interpretation
-    - Variables and their definitions in the context of surrounding content
-    - Mathematical operations and functions used
-    - Application domain and context based on surrounding material
-    - Physical or theoretical significance
-    - Relationship to other mathematical concepts mentioned in the context
-    - Practical applications or use cases
-    - How the equation relates to the broader discussion or framework
-    Always use specific mathematical terminology.",
+    "detailed_description": "公式的综合分析，包括：
+    - 数学含义和解释
+    - 上下文中的变量及其定义
+    - 使用的数学运算和函数
+    - 基于周围材料的应用领域和上下文
+    - 物理或理论意义
+    - 与上下文中提到的其他数学概念的关系
+    - 实际应用或用例
+    - 公式与更广泛讨论或框架的关系
+    始终使用具体的数学术语。",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "equation",
-        "summary": "concise summary of the equation's purpose, significance, and role in the surrounding context (max 100 words)"
+        "summary": "公式用途、其重要性及其在周围内容中作用的简洁总结（最多100字）"
     }}
 }}
 
-Context from surrounding content:
+来自周围内容的上下文：
 {context}
 
-Equation Information:
-Equation: {equation_text}
-Format: {equation_format}
+公式信息：
+公式：{equation_text}
+格式：{equation_format}
 
-Focus on providing mathematical insights and explaining the equation's significance within the broader context."""
+专注于在更广泛背景下提供数学见解并解释公式的重要性。"""
 
 # Generic content analysis prompt template
 PROMPTS[
     "generic_prompt"
-] = """Please analyze this {content_type} content and provide a JSON response with the following structure:
+] = """请分析此 {content_type} 类型的内容并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive analysis of the content including:
-    - Content structure and organization
-    - Key information and elements
-    - Relationships between components
-    - Context and significance
-    - Relevant details for knowledge retrieval
-    Always use specific terminology appropriate for {content_type} content.",
+    "detailed_description": "内容的综合分析，包括：
+    - 内容结构和组织
+    - 关键信息和要素
+    - 组件之间的关系
+    - 上下文和重要性
+    - 与知识检索相关的相关细节
+    始终使用适合 {content_type} 内容的具体术语。",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "{content_type}",
-        "summary": "concise summary of the content's purpose and key points (max 100 words)"
+        "summary": "内容用途和关键点的简洁总结（最多100字）"
     }}
 }}
 
-Content: {content}
+内容：{content}
 
-Focus on extracting meaningful information that would be useful for knowledge retrieval."""
+专注于提取对知识检索有用的有意义信息。"""
 
 # Generic content analysis prompt with context support
 PROMPTS[
     "generic_prompt_with_context"
-] = """Please analyze this {content_type} content considering the surrounding context, and provide a JSON response with the following structure:
+] = """请结合周围上下文分析此 {content_type} 类型的内容，并提供 JSON 格式的响应：
 
 {{
-    "detailed_description": "A comprehensive analysis of the content including:
-    - Content structure and organization
-    - Key information and elements
-    - Relationships between components
-    - Context and significance in relation to surrounding content
-    - How this content connects to or supports the broader discussion
-    - Relevant details for knowledge retrieval
-    Always use specific terminology appropriate for {content_type} content.",
+    "detailed_description": "内容的综合分析，包括：
+    - 内容结构和组织
+    - 关键信息和要素
+    - 组件之间的关系
+    - 相对于周围内容的上下文和重要性
+    - 此内容如何连接或支持更广泛的讨论
+    - 与知识检索相关的相关细节
+    始终使用适合 {content_type} 内容的具体术语。",
     "entity_info": {{
         "entity_name": "{entity_name}",
         "entity_type": "{content_type}",
-        "summary": "concise summary of the content's purpose, key points, and relationship to surrounding context (max 100 words)"
+        "summary": "内容用途、关键点及其与周围内容关系的简洁总结（最多100字）"
     }}
 }}
 
-Context from surrounding content:
+来自周围内容的上下文：
 {context}
 
-Content: {content}
+内容：{content}
 
-Focus on extracting meaningful information that would be useful for knowledge retrieval and understanding the content's role in the broader context."""
+专注于提取对知识检索和理解内容在更广泛背景中作用有用的有意义信息。"""
 
 # Modal chunk templates
 PROMPTS["image_chunk"] = """
-Image Content Analysis:
-Image Path: {image_path}
-Captions: {captions}
-Footnotes: {footnotes}
+图像内容分析：
+图像路径：{image_path}
+标题：{captions}
+注释：{footnotes}
 
-Visual Analysis: {enhanced_caption}"""
+视觉分析：{enhanced_caption}"""
 
-PROMPTS["table_chunk"] = """Table Analysis:
-Image Path: {table_img_path}
-Caption: {table_caption}
-Structure: {table_body}
-Footnotes: {table_footnote}
+PROMPTS["table_chunk"] = """表格分析：
+图像路径：{table_img_path}
+标题：{table_caption}
+结构：{table_body}
+注释：{table_footnote}
 
-Analysis: {enhanced_caption}"""
+分析：{enhanced_caption}"""
 
-PROMPTS["equation_chunk"] = """Mathematical Equation Analysis:
-Equation: {equation_text}
-Format: {equation_format}
+PROMPTS["equation_chunk"] = """数学公式分析：
+公式：{equation_text}
+格式：{equation_format}
 
-Mathematical Analysis: {enhanced_caption}"""
+数学分析：{enhanced_caption}"""
 
-PROMPTS["generic_chunk"] = """{content_type} Content Analysis:
-Content: {content}
+PROMPTS["generic_chunk"] = """{content_type} 内容分析：
+内容：{content}
 
-Analysis: {enhanced_caption}"""
+分析：{enhanced_caption}"""
 
 # Query-related prompts
 PROMPTS["QUERY_IMAGE_DESCRIPTION"] = (
-    "Please briefly describe the main content, key elements, and important information in this image."
+    "请简要描述这张图像的主要内容、关键要素和重要信息。"
 )
 
 PROMPTS["QUERY_IMAGE_ANALYST_SYSTEM"] = (
-    "You are a professional image analyst who can accurately describe image content."
+    "你是一位专业的图像分析师，能准确描述图像内容。"
 )
 
 PROMPTS[
     "QUERY_TABLE_ANALYSIS"
-] = """Please analyze the main content, structure, and key information of the following table data:
+] = """请分析以下表格数据的主要内容、结构和关键信息：
 
-Table data:
+表格数据：
 {table_data}
 
-Table caption: {table_caption}
+表格标题：{table_caption}
 
-Please briefly summarize the main content, data characteristics, and important findings of the table."""
+请简要总结表格的主要内容、数据特征和重要发现。"""
 
 PROMPTS["QUERY_TABLE_ANALYST_SYSTEM"] = (
-    "You are a professional data analyst who can accurately analyze table data."
+    "你是一位专业的数据分析师，能准确分析表格数据。"
 )
 
 PROMPTS[
     "QUERY_EQUATION_ANALYSIS"
-] = """Please explain the meaning and purpose of the following mathematical formula:
+] = """请解释以下数学公式的含义和用途：
 
-LaTeX formula: {latex}
-Formula caption: {equation_caption}
+LaTeX 公式：{latex}
+公式标题：{equation_caption}
 
-Please briefly explain the mathematical meaning, application scenarios, and importance of this formula."""
+请简要说明此公式的数学含义、应用场景和重要性。"""
 
 PROMPTS["QUERY_EQUATION_ANALYST_SYSTEM"] = (
-    "You are a mathematics expert who can clearly explain mathematical formulas."
+    "你是一位数学专家，能清晰解释数学公式。"
 )
 
 PROMPTS[
     "QUERY_GENERIC_ANALYSIS"
-] = """Please analyze the following {content_type} type content and extract its main information and key features:
+] = """请分析以下 {content_type} 类型的内容并提取其主要信息和关键特征：
 
-Content: {content_str}
+内容：{content_str}
 
-Please briefly summarize the main characteristics and important information of this content."""
+请简要总结此内容的主要特征和重要信息。"""
 
 PROMPTS["QUERY_GENERIC_ANALYST_SYSTEM"] = (
-    "You are a professional content analyst who can accurately analyze {content_type} type content."
+    "你是一位专业的内容分析师，能准确分析 {content_type} 类型的内容。"
 )
 
 PROMPTS["QUERY_ENHANCEMENT_SUFFIX"] = (
-    "\n\nPlease provide a comprehensive answer based on the user query and the provided multimodal content information."
+    "\n\n请根据用户查询和提供的多模态内容信息，提供全面的回答。"
 )

@@ -416,6 +416,11 @@ class KnowledgeBaseBuilder:
                 "llm_model_max_async": 4,  # 降低并发避免API速率限制 (付费版推荐4-6)
                 "max_parallel_insert": 4,   # 多模态处理并发数量 (付费版推荐4-6)
                 "chunk_overlap_token_size": 128,  # 增加重叠以改善上下文
+                # 语言配置
+                "addon_params": {
+                    "language": "Chinese",  # 知识图谱构建和查询的语言
+                    "entity_types": ["organization", "person", "location", "event", "concept", "method"]
+                },
             },
         )
 

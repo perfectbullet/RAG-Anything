@@ -299,6 +299,11 @@ async def demo_streaming_query():
             "cosine_better_than_threshold": 0.5,
             "min_rerank_score": 0.3,
             "enable_llm_cache": False,  # 禁用缓存以测试流式输出
+            # 语言配置
+            "addon_params": {
+                "language": "Chinese",  # 知识图谱构建和查询的语言
+                "entity_types": ["organization", "person", "location", "event", "concept", "method"]
+            },
         },
     )
 
