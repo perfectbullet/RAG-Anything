@@ -26,6 +26,47 @@ from lightrag.utils import compute_mdhash_id
 class ProcessorMixin:
     """ProcessorMixin class containing document processing functionality for RAGAnything"""
 
+    @staticmethod
+    def _extract_text_from_caption(caption: Any) -> str:
+        """
+        Extract text content from caption field which may be:
+        - A string
+        - A list of strings
+        - A list of dicts with 'content' key (v2 format)
+        - A list of mixed types
+
+        Args:
+            caption: Caption data in various formats
+
+        Returns:
+            Joined string of all text content
+        """
+        if not caption:
+            return ""
+
+        # If it's already a string
+        if isinstance(caption, str):
+            return caption
+
+        # If it's a list, process each element
+        if isinstance(caption, list):
+            text_parts = []
+            for item in caption:
+                if isinstance(item, str):
+                    text_parts.append(item)
+                elif isinstance(item, dict):
+                    # V2 format: {'type': 'text', 'content': '...'}
+                    content = item.get("content", "")
+                    if content:
+                        text_parts.append(str(content))
+                else:
+                    # Other types, convert to string
+                    text_parts.append(str(item))
+            return ", ".join(text_parts)
+
+        # For other types, convert to string
+        return str(caption)
+
     def _get_file_reference(self, file_path: str) -> str:
         """
         Get file reference based on use_full_path configuration.
@@ -1019,10 +1060,14 @@ class ProcessorMixin:
                     "image_footnote", original_item.get("img_footnote", [])
                 )
 
+                # Extract text from captions (handles both v2 format and standard format)
+                captions_text = self._extract_text_from_caption(captions)
+                footnotes_text = self._extract_text_from_caption(footnotes)
+
                 return PROMPTS["image_chunk"].format(
                     image_path=image_path,
-                    captions=", ".join(captions) if captions else "None",
-                    footnotes=", ".join(footnotes) if footnotes else "None",
+                    captions=captions_text if captions_text else "None",
+                    footnotes=footnotes_text if footnotes_text else "None",
                     enhanced_caption=description,
                 )
 
@@ -1032,12 +1077,16 @@ class ProcessorMixin:
                 table_body = original_item.get("table_body", "")
                 table_footnote = original_item.get("table_footnote", [])
 
+                # Extract text from captions (handles both v2 format and standard format)
+                caption_text = self._extract_text_from_caption(table_caption)
+                footnote_text = self._extract_text_from_caption(table_footnote)
+
                 return PROMPTS["table_chunk"].format(
                     table_img_path=table_img_path,
-                    table_caption=", ".join(table_caption) if table_caption else "None",
+                    table_caption=caption_text if caption_text else "None",
                     table_body=table_body,
-                    table_footnote=", ".join(table_footnote)
-                    if table_footnote
+                    table_footnote=footnote_text
+                    if footnote_text
                     else "None",
                     enhanced_caption=description,
                 )

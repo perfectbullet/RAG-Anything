@@ -647,55 +647,10 @@ async def main():
     except Exception as e:
         logger.warning(f"⚠️  查询初始化失败（可能没有数据）: {e}")
 
-    # 5. 插入内容列表 - 使用小节拆分器处理大文件
-    logger.info("📝 插入内容列表到数据库（使用小节拆分器）...")
-    content_list_path = '/data/metahuman_work/ZengKingMorphe/Digital-Human-Disciplinary-Dataset/高中数学相关资料内容/math-data-v1/04高中数学选择性必修第二册/vlm'
-    content_list_v2, json_file_path = load_test_content_list(content_list_path)
-
-    # 生成 doc_id 前缀
-    doc_id_prefix = generate_doc_id_from_path(json_file_path)
-    logger.info(f"📋 doc_id 前缀: {doc_id_prefix}")
-
-    # 使用拆分器按小节处理
-    results = await insert_large_file_with_splitter(
-        rag=rag,
-        content_list_v2=content_list_v2,
-        file_path=json_file_path.as_posix(),
-        doc_id_prefix=doc_id_prefix,
-        max_retries=2,
-        batch_delay=2.0,  # 批处理间延迟2秒，避免API速率限制
-    )
-
-    logger.info(f"{ProgressMessage.COMPLETED} 内容列表插入完成!")
-
-    # 显示处理结果
-    if results["success"]:
-        logger.info(f"✅ 成功插入 {len(results['success'])} 个小节")
-    if results["skipped"]:
-        logger.info(f"⏭️  跳过 {len(results['skipped'])} 个已存在小节")
-    if results["failed"]:
-        logger.warning(f"❌ {len(results['failed'])} 个小节处理失败")
-
-    # 6. 示例查询
-    logger.info("\n🔍 执行示例查询...")
-    test_queries = [
-        "数学必修第一册包含哪些内容？",
-        "文档中有哪些重要的数学概念？",
-        "在集合中有哪些常用的术语？",
-        "今天北京天气怎么样"
-    ]
-
-    for query in test_queries:
-        logger.info(f"\n{'=' * 70}")
-        logger.info(f"[查询]: {query}")
-        logger.info(f"{'=' * 70}")
-        # 再获取最终答案
-        result = await rag.aquery(query, mode="hybrid", vlm_enhanced=False)
-
-        logger.info(f"\n[回答]:\n{result}")
-
-    logger.info("\n" + "=" * 70)
-    logger.info(f"{ProgressMessage.COMPLETED} 示例执行完成!")
+    dele_result = await rag.lightrag.adelete_by_doc_id('doc_b7a9fab8f056_ch1_4_1_数列的概念')
+    logger.info(f"dele_result is {dele_result}")
+    
+     
     logger.info("=" * 70)
 
 

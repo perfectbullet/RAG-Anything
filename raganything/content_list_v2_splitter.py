@@ -17,6 +17,7 @@ Example:
 """
 
 import re
+import json
 from typing import List, Dict, Any, Optional
 from functools import lru_cache
 from lightrag.utils import logger
@@ -171,7 +172,7 @@ class ContentListV2Splitter:
 
         for page_idx, page_items in enumerate(content_list_v2):
             for item in page_items:
-                text = self._extract_text_from_item_cached(tuple(item.items()))
+                text = self._extract_text_from_item_cached(json.dumps(item, sort_keys=True))
                 if text and any(kw in text for kw in toc_keywords):
                     # 找到目录页，返回下一页作为正文开始
                     logger.info(f"📑 检测到目录页: page {page_idx}")
@@ -205,7 +206,7 @@ class ContentListV2Splitter:
             page_items = content_list_v2[page_idx]
             for item in page_items:
                 if item.get('type') == 'title' and item.get('content', {}).get('level') == 1:
-                    title = self._extract_text_from_item(item)
+                    title = self._extract_text_from_item_cached(json.dumps(item, sort_keys=True))
                     for pattern in self.chapter_patterns:
                         if re.match(pattern, title):
                             toc_chapters.add(title)
@@ -223,7 +224,7 @@ class ContentListV2Splitter:
             for item in page_items:
                 # 查找一级标题
                 if item.get('type') == 'title' and item.get('content', {}).get('level') == 1:
-                    title = self._extract_text_from_item(item)
+                    title = self._extract_text_from_item_cached(json.dumps(item, sort_keys=True))
 
                     # 检查是否匹配章节模式
                     is_chapter = False
@@ -297,7 +298,7 @@ class ContentListV2Splitter:
             for item in page_items:
                 # 查找标题
                 if item.get('type') == 'title':
-                    title = self._extract_text_from_item(item)
+                    title = self._extract_text_from_item_cached(json.dumps(item, sort_keys=True))
 
                     # 检查是否匹配小节模式
                     is_section = False
@@ -382,18 +383,18 @@ class ContentListV2Splitter:
         return batches
 
     @lru_cache(maxsize=1000)
-    def _extract_text_from_item_cached(self, item_tuple: tuple) -> str:
+    def _extract_text_from_item_cached(self, item_json: str) -> str:
         """
         Cached version of text extraction for v2 format items
 
         Args:
-            item_tuple: Hashable representation of the item for caching
+            item_json: JSON string representation of the item for caching
 
         Returns:
             Extracted text string
         """
-        # Convert tuple back to dict
-        item = dict(item_tuple)
+        # Convert JSON string back to dict
+        item = json.loads(item_json)
         return extract_text_from_item(item, content_format="v2")
 
     def _flatten_page_content(self, content_list_v2: List, start_page: int, end_page: int) -> List[Dict]:
@@ -444,7 +445,7 @@ class ContentListV2Splitter:
                 type_counts[item_type] = type_counts.get(item_type, 0) + 1
 
                 # 检查目录
-                text = self._extract_text_from_item_cached(tuple(item.items()))
+                text = self._extract_text_from_item_cached(json.dumps(item, sort_keys=True))
                 if text and ('目录' in text or 'CONTENTS' in str(text).upper()):
                     has_toc = True
 

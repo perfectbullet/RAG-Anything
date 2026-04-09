@@ -672,7 +672,7 @@ class BaseProgressTracker:
 class ContentProcessingProgressTracker(BaseProgressTracker):
     """Progress tracker specifically for content processing"""
 
-    def __init__(self, progress_file: str = None):
+    def __init__(self, progress_file: Optional[str] = None):
         super().__init__(progress_file or "./insert_progress.json")
 
     def set_document_info(self, file_path: str, total_sections: int):
@@ -708,16 +708,33 @@ class ContentProcessingProgressTracker(BaseProgressTracker):
             self._save_progress()
             logger.info(f"  💾 Marked as completed: {title or doc_id}")
 
-    def mark_failed(self, doc_id: str, title: str, error: str, retry_config: RetryConfig = None):
-        """Mark a section as failed"""
-        retry_config = retry_config or RetryConfig()
+    def mark_failed(self, doc_id: str, title: str, error: str, retry_count: int = None, max_retries: int = None, retry_config: RetryConfig = None):
+        """Mark a section as failed
+
+        Supports two calling conventions:
+        - mark_failed(doc_id, title, error, retry_count, max_retries)
+        - mark_failed(doc_id, title, error, retry_config=RetryConfig())
+        """
+        # Handle both calling conventions
+        if retry_count is not None and max_retries is not None:
+            # Old calling convention: retry_count, max_retries as positional args
+            actual_retry_count = retry_count
+            actual_max_retries = max_retries
+        elif retry_config is not None:
+            # New calling convention: retry_config as keyword arg
+            actual_retry_count = retry_config.max_retries
+            actual_max_retries = retry_config.max_retries
+        else:
+            # Default values
+            actual_retry_count = 0
+            actual_max_retries = 2
 
         failed_record = {
             "doc_id": doc_id,
             "title": title,
             "error": error,
-            "retry_count": retry_config.max_retries,
-            "max_retries": retry_config.max_retries,
+            "retry_count": actual_retry_count,
+            "max_retries": actual_max_retries,
             "last_failed": str(Path(self.progress_file).stat().st_mtime) if Path(self.progress_file).exists() else None,
         }
 
@@ -729,6 +746,18 @@ class ContentProcessingProgressTracker(BaseProgressTracker):
         self._progress_data.setdefault("failed", []).append(failed_record)
         self._save_progress()
         logger.info(f"  💾 Marked as failed: {title}")
+
+    def is_started(self, doc_id: str) -> bool:
+        """Check if a section has been started"""
+        return doc_id in self._progress_data.get("started", [])
+
+    def is_completed(self, doc_id: str) -> bool:
+        """Check if a section has been completed"""
+        return doc_id in self._progress_data.get("completed", [])
+
+    def get_failed_sections(self) -> list:
+        """Get list of failed sections"""
+        return self._progress_data.get("failed", [])
 
 
 # =============================================================================
