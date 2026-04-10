@@ -66,6 +66,7 @@ from raganything.utils import (
     ContentProcessingProgressTracker,
     RetryConfig,
     ProgressMessage,
+    get_chinese_query_prompt,
 )
 
 # Load .env file
@@ -448,9 +449,9 @@ async def main():
         answer_buffer = []
 
         async for chunk in rag.aquery_stream_with_sources(
-            query, 
+            query,
             mode="hybrid",
-            system_prompt=None,  # 系统提示词
+            system_prompt=get_chinese_query_prompt(),  # 中文系统提示词（无 References）
             top_k=20, # 召回实体/关系数量
             chunk_top_k=10,  # (默认10) - 召回文档块数量
             enable_rerank=True # (默认True) - 是否启用重排序
@@ -460,18 +461,17 @@ async def main():
 
             if chunk_type == "sources_info":
                 # 检索信息摘要
+                print("\n\n" + "-" * 50)
                 logger.info(f"📊 检索到: {content['entities_count']} 个实体, "
                            f"{content['relationships_count']} 个关系, "
                            f"{content['chunks_count']} 个文档块")
-                print()  # 空行分隔
+                print("\n\n" + "-" * 50)
+                print("📚 开始进行chunk输出")  # 空行分隔
 
             elif chunk_type == "chunk":
-                # 过滤掉 References 部分
                 # 实时显示答案内容
-                print("流式输出开始")
-                print(f"# {content}")
+                print(content, end="", flush=True)
                 answer_buffer.append(content)
-                print("流式输出结束")
             elif chunk_type == "sources":
                 # 完整的来源数据
                 sources = content
@@ -497,7 +497,6 @@ async def main():
             
             elif chunk_type == "error":
                 logger.error(f"❌ 查询出错: {content}")
-        print(f"answer_buffer is {answer_buffer}")
         print()  # 换行
 
     logger.info("\n" + "=" * 70)
