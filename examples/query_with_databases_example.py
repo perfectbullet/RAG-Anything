@@ -412,7 +412,7 @@ async def main():
             "cosine_better_than_threshold": 0.5,  # 向量相似度阈值
             "min_rerank_score": 0.3,  # 过滤 rerank 分数低于 0.2 的 chunks
             # 缓存开关
-            "enable_llm_cache": False,
+            "enable_llm_cache": True,
             # 语言配置
             "addon_params": {
                 "language": "Chinese",
@@ -445,9 +445,6 @@ async def main():
         logger.info(f"{'=' * 70}")
 
         # 流式查询，实时显示答案并提供来源信息
-        sources_info = None
-        answer_buffer = []
-
         async for chunk in rag.aquery_stream_with_sources(
             query,
             mode="hybrid",
@@ -458,26 +455,22 @@ async def main():
             ):
             chunk_type = chunk.get("type")
             content = chunk.get("content")
-
             if chunk_type == "sources_info":
                 # 检索信息摘要
-                print("\n\n" + "-" * 50)
+                content: dict
                 logger.info(f"📊 检索到: {content['entities_count']} 个实体, "
                            f"{content['relationships_count']} 个关系, "
                            f"{content['chunks_count']} 个文档块")
-                print("\n\n" + "-" * 50)
-                print("📚 开始进行chunk输出")  # 空行分隔
 
             elif chunk_type == "chunk":
                 # 实时显示答案内容
                 print(content, end="", flush=True)
-                answer_buffer.append(content)
             elif chunk_type == "sources":
                 # 完整的来源数据
                 sources = content
                 print("\n\n" + "-" * 50)
                 print("📚 来源信息:")
-
+                print(f"the sources is {sources}")
                 # 显示实体
                 if sources.get("entities"):
                     print(f"\n  实体 ({len(sources['entities'])} 个):")
@@ -490,7 +483,7 @@ async def main():
                 if sources.get("chunks"):
                     print(f"\n  文档块 ({len(sources['chunks'])} 个):")
                     for i, chunk in enumerate(sources["chunks"][:3], 1):  # 只显示前3个
-                        content_preview = chunk.get("content", "")[:100]
+                        content_preview = chunk.get("content", "")
                         print(f"    [{i}] {content_preview}...")
                     if len(sources["chunks"]) > 3:
                         print(f"    ... 还有 {len(sources['chunks']) - 3} 个文档块")
