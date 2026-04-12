@@ -509,6 +509,7 @@ def normalize_content_list(content_list: List[Dict[str, Any]]) -> List[Dict[str,
                             "type": "text",
                             "text": merged_text,
                             "page_idx": item.get("page_idx", 0),
+                            "bbox": item.get("bbox", [])
                         }
                     )
                     list_count += 1

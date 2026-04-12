@@ -1986,6 +1986,10 @@ class ProcessorMixin:
         # Step 1: Normalize content list (convert unsupported types like list, page_number, footer)
         normalized_list = normalize_content_list(content_list)
 
+        with open(f"./json格式数据/{doc_id}_normalize_content_list.json", 'w', encoding='utf-8') as f:
+            json.dump(normalized_list, f, ensure_ascii=False, indent=2)
+        # import sys
+        # sys.exit(0)
         # Step 2: Separate text and multimodal content
         text_content, multimodal_items = separate_content(normalized_list)
 

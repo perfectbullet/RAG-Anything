@@ -451,7 +451,7 @@ async def insert_large_file_with_splitter(
         doc_id_prefix,
     )
     # 保存切分结果到 JSON 文件
-    output_file = f"{doc_id_prefix}_split_result.json"
+    output_file = f"./json格式数据/{doc_id_prefix}_split_result.json"
     
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(sections, f, ensure_ascii=False, indent=2)
@@ -460,7 +460,6 @@ async def insert_large_file_with_splitter(
     with open(content_list_v1_json, 'w', encoding='utf-8') as f:
         json.dump(content_list_v1, f, ensure_ascii=False, indent=2)
     logger.info(f"💾 切分结果已保存到: {output_file}")
-
 
     # 初始化进度跟踪器
     tracker = ContentProcessingProgressTracker(progress_file)
@@ -478,19 +477,17 @@ async def insert_large_file_with_splitter(
     for idx, section in enumerate(sections, 0):
         title: str = section['title']
         doc_id = section['doc_id']
-        # content_list = section['content_list']
         page_range: list = section['page_range']
         logger.info(f"page_range: {page_range}")
         # 检查是否已完成（通过进度文件）
-        # if tracker.is_completed(doc_id):
-        #     logger.info(f"\n小节 {idx}/{len(sections)}: {title}")
-        #     logger.info(f"  ⏭️  已完成（进度文件），跳过")
-        #     results["skipped"].append(doc_id)
-        #     continue
+        if tracker.is_completed(doc_id):
+            logger.info(f"\n小节 {idx}/{len(sections)}: {title}")
+            logger.info("  ⏭️  已完成（进度文件），跳过")
+            results["skipped"].append(doc_id)
+            continue
 
         logger.info(f"\n小节 {idx}/{len(sections)}: {title}")
         logger.info(f"  页码: {page_range[0]}-{page_range[1]}")
-        # logger.info(f"  内容: {len(content_list)} items")
         logger.info(f"  doc_id: {doc_id}")
 
         # 标记为开始处理
@@ -500,18 +497,15 @@ async def insert_large_file_with_splitter(
         for retry in range(max_retries + 1):
             try:
                 content_list = get_content_list_by_range(content_list_v1, page_range[0], page_range[1])
-                logger.info(f"content_list_form_v1: {len(content_list)}")
+                logger.info(f"content_list: {len(content_list)}")
                 logger.info(f"file_path: {file_path}")
-                title_new = title.strip()
-                with open(f"./json格式数据/{title_new}.json", 'w', encoding='utf-8') as f:
-                    json.dump(content_list, f, ensure_ascii=False, indent=2)
                 await rag.insert_content_list(
                     content_list=content_list,
                     file_path=file_path,
                     doc_id=doc_id,
                     display_stats=False,
                 )
-                logger.info(f"  ✅ 完成")
+                logger.info("  ✅ 完成")
                 tracker.mark_completed(doc_id, title)
                 results["success"].append(doc_id)
                 break
@@ -562,8 +556,6 @@ async def insert_large_file_with_splitter(
 
     logger.info(f"\n💡 下次运行将自动跳过已完成的小节，并重试失败的小节")
     logger.info(f"   如需重新开始，请删除进度文件: {tracker.progress_file}")
-    
-    sys.exit(0)
     
     return results
 
@@ -654,7 +646,7 @@ async def main():
 
     # 5. 插入内容列表 - 使用小节拆分器处理大文件
     logger.info("📝 插入内容列表到数据库（使用小节拆分器）...")
-    content_list_path = '/home/zj/ZengKingMorphe/Digital-Human-Disciplinary-Dataset/高中数学相关资料内容/math-data-v1/04高中数学选择性必修第二册/vlm'
+    content_list_path = '/data/metahuman_work/ZengKingMorphe/Digital-Human-Disciplinary-Dataset/高中数学相关资料内容/math-data-v1/03高中数学选择性必修第一册/vlm'
     content_list_v1, content_list_v2, json_file_path = load_content_list_v2(content_list_path)
     # 生成 doc_id 前缀
     doc_id_prefix = generate_doc_id_from_path(json_file_path)
