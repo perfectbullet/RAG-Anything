@@ -18,6 +18,7 @@ from raganything.utils import (
     insert_text_content,
     insert_text_content_with_multimodal_content,
     get_processor_for_type,
+    normalize_content_list,
 )
 import asyncio
 from lightrag.utils import compute_mdhash_id
@@ -1085,9 +1086,7 @@ class ProcessorMixin:
                     table_img_path=table_img_path,
                     table_caption=caption_text if caption_text else "None",
                     table_body=table_body,
-                    table_footnote=footnote_text
-                    if footnote_text
-                    else "None",
+                    table_footnote=footnote_text if footnote_text else "None",
                     enhanced_caption=description,
                 )
 
@@ -1925,29 +1924,29 @@ class ProcessorMixin:
         display_stats: bool = None,
     ):
         """
-        Insert content list directly without document parsing
+        直接插入内容列表，无需进行文档解析
 
         Args:
-            content_list: Pre-parsed content list containing text and multimodal items.
-                         Each item should be a dictionary with the following structure:
-                         - Text: {"type": "text", "text": "content", "page_idx": 0}
-                         - Image: {"type": "image", "img_path": "/absolute/path/to/image.jpg",
-                                  "image_caption": ["caption"], "image_footnote": ["note"], "page_idx": 1}
-                         - Table: {"type": "table", "table_body": "markdown table",
-                                  "table_caption": ["caption"], "table_footnote": ["note"], "page_idx": 2}
-                         - Equation: {"type": "equation", "latex": "LaTeX formula",
-                                     "text": "description", "page_idx": 3}
-                         - Generic: {"type": "custom_type", "content": "any content", "page_idx": 4}
-            file_path: Reference file path/name for citation (defaults to "unknown_document")
-            split_by_character: Optional character to split the text by
-            split_by_character_only: If True, split only by the specified character
-            doc_id: Optional document ID, if not provided will be generated from content
-            display_stats: Whether to display content statistics (defaults to config.display_content_stats)
+            content_list: 预解析的内容列表，包含文本和多模态项。
+                         每项应该是一个字典，具有以下结构：
+                         - 文本: {"type": "text", "text": "内容", "page_idx": 0}
+                         - 图片: {"type": "image", "img_path": "/图片文件的绝对路径.jpg",
+                                  "image_caption": ["标题"], "image_footnote": ["脚注"], "page_idx": 1}
+                         - 表格: {"type": "table", "table_body": "markdown表格",
+                                  "table_caption": ["标题"], "table_footnote": ["脚注"], "page_idx": 2}
+                         - 公式: {"type": "equation", "latex": "LaTeX公式",
+                                     "text": "描述", "page_idx": 3}
+                         - 通用: {"type": "自定义类型", "content": "任意内容", "page_idx": 4}
+            file_path: 用于引用的文件路径/名称（默认为 "unknown_document"）
+            split_by_character: 用于分割文本的可选字符
+            split_by_character_only: 如果为 True，则仅按指定字符分割
+            doc_id: 可选的文档 ID，如果未提供将根据内容生成
+            display_stats: 是否显示内容统计信息（默认为 config.display_content_stats）
 
-        Note:
-            - img_path must be an absolute path to the image file
-            - page_idx represents the page number where the content appears (0-based indexing)
-            - Items are processed in the order they appear in the list
+        注意:
+            - img_path 必须是图片文件的绝对路径
+            - page_idx 表示内容出现的页码（从 0 开始索引）
+            - 列表中的项按其出现的顺序进行处理
         """
         callback_manager = getattr(self, "callback_manager", None)
         doc_start_time = time.time()
@@ -1984,19 +1983,22 @@ class ProcessorMixin:
             for block_type, count in block_types.items():
                 self.logger.info(f"  - {block_type}: {count}")
 
-        # Step 1: Separate text and multimodal content
-        text_content, multimodal_items = separate_content(content_list)
+        # Step 1: Normalize content list (convert unsupported types like list, page_number, footer)
+        normalized_list = normalize_content_list(content_list)
 
-        # Step 1.5: Set content source for context extraction in multimodal processing
+        # Step 2: Separate text and multimodal content
+        text_content, multimodal_items = separate_content(normalized_list)
+
+        # Step 2.5: Set content source for context extraction in multimodal processing
         if hasattr(self, "set_content_source_for_context") and multimodal_items:
             self.logger.info(
                 "Setting content source for context-aware multimodal processing..."
             )
             self.set_content_source_for_context(
-                content_list, self.config.content_format
+                normalized_list, self.config.content_format
             )
 
-        # Step 2: Insert pure text content with all parameters
+        # Step 3: Insert pure text content with all parameters
         if text_content.strip():
             # Use full path or basename based on config
             file_ref = self._get_file_reference(file_path)
@@ -2028,7 +2030,7 @@ class ProcessorMixin:
             # Determine file reference even if no text content
             file_ref = self._get_file_reference(file_path)
 
-        # Step 3: Process multimodal content (using specialized processors)
+        # Step 4: Process multimodal content (using specialized processors)
         if multimodal_items:
             await self._process_multimodal_content(multimodal_items, file_ref, doc_id)
         else:

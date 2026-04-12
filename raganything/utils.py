@@ -16,7 +16,9 @@ from pathlib import Path
 from lightrag.utils import logger
 
 
-def generate_doc_id_from_path(file_path: str | Path, prefix: str = "doc_", length: int = 12) -> str:
+def generate_doc_id_from_path(
+    file_path: str | Path, prefix: str = "doc_", length: int = 12
+) -> str:
     """
     从文件路径生成唯一的 doc_id
 
@@ -339,7 +341,10 @@ def get_image_dimensions(image_path: str) -> Tuple[int, int] | None:
 # Text Extraction Utilities
 # =============================================================================
 
-def extract_text_from_item(item: Dict[str, Any], content_format: str = "standard") -> str:
+
+def extract_text_from_item(
+    item: Dict[str, Any], content_format: str = "standard"
+) -> str:
     """
     Unified text extraction supporting both standard and v2 formats
 
@@ -350,91 +355,186 @@ def extract_text_from_item(item: Dict[str, Any], content_format: str = "standard
     Returns:
         str: Extracted text content
     """
-    item_type = item.get('type', '')
-    content = item.get('content', {})
+    item_type = item.get("type", "")
+    content = item.get("content", {})
 
     if not content:
-        return ''
+        return ""
 
     try:
         if content_format == "v2":
             # V2 format has nested content structure
-            if item_type == 'title':
-                title_content = content.get('title_content', [])
+            if item_type == "title":
+                title_content = content.get("title_content", [])
                 if title_content and len(title_content) > 0:
-                    return title_content[0].get('content', '')
-            elif item_type == 'paragraph':
-                para_content = content.get('paragraph_content', [])
+                    return title_content[0].get("content", "")
+            elif item_type == "paragraph":
+                para_content = content.get("paragraph_content", [])
                 if para_content and len(para_content) > 0:
                     # Join multiple text items
                     texts = []
                     for text_item in para_content:
                         if isinstance(text_item, dict):
-                            texts.append(text_item.get('content', ''))
+                            texts.append(text_item.get("content", ""))
                         elif isinstance(text_item, str):
                             texts.append(text_item)
                     return "".join(texts)
-            elif item_type == 'list':
-                list_items = content.get('list_items', [])
+            elif item_type == "list":
+                list_items = content.get("list_items", [])
                 if list_items:
                     first_item = list_items[0]
-                    item_content = first_item.get('item_content', [])
+                    item_content = first_item.get("item_content", [])
                     if item_content and len(item_content) > 0:
-                        return item_content[0].get('content', '')
-            elif item_type == 'equation_interline':
-                return content.get('math_content', '')
-            elif item_type == 'image':
-                captions = content.get('image_caption', [])
+                        return item_content[0].get("content", "")
+            elif item_type == "equation_interline":
+                return content.get("math_content", "")
+            elif item_type == "image":
+                captions = content.get("image_caption", [])
                 if captions:
-                    return captions[0] if isinstance(captions, str) else captions[0] if captions else ''
-            elif item_type == 'table':
-                captions = content.get('table_caption', [])
+                    return (
+                        captions[0]
+                        if isinstance(captions, str)
+                        else captions[0]
+                        if captions
+                        else ""
+                    )
+            elif item_type == "table":
+                captions = content.get("table_caption", [])
                 if captions:
-                    return captions[0] if isinstance(captions, str) else captions[0] if captions else ''
-                return content.get('table_body', '')
-            elif item_type == 'chart':
-                captions = content.get('chart_caption', [])
+                    return (
+                        captions[0]
+                        if isinstance(captions, str)
+                        else captions[0]
+                        if captions
+                        else ""
+                    )
+                return content.get("table_body", "")
+            elif item_type == "chart":
+                captions = content.get("chart_caption", [])
                 if captions:
-                    return captions[0] if isinstance(captions, str) else captions[0] if captions else ''
-            elif item_type == 'code':
-                return content.get('code_content', '')
-            elif item_type == 'algorithm':
-                return content.get('algorithm_content', '')
-            elif item_type == 'index':
-                list_items = content.get('list_items', [])
+                    return (
+                        captions[0]
+                        if isinstance(captions, str)
+                        else captions[0]
+                        if captions
+                        else ""
+                    )
+            elif item_type == "code":
+                return content.get("code_content", "")
+            elif item_type == "algorithm":
+                return content.get("algorithm_content", "")
+            elif item_type == "index":
+                list_items = content.get("list_items", [])
                 if list_items:
                     first_item = list_items[0]
-                    item_content = first_item.get('item_content', [])
+                    item_content = first_item.get("item_content", [])
                     if item_content and len(item_content) > 0:
-                        return item_content[0].get('content', '')
+                        return item_content[0].get("content", "")
         else:
             # Standard format (flat structure)
-            if item_type == 'title':
-                return item.get('title', '')
-            elif item_type == 'paragraph':
-                return item.get('text', '')
-            elif item_type == 'list':
-                return item.get('text', '')
-            elif item_type == 'equation':
-                return item.get('latex', '')
-            elif item_type == 'image':
-                caption = item.get('image_caption', [])
-                return caption[0] if caption else ''
-            elif item_type == 'table':
-                caption = item.get('table_caption', [])
-                return caption[0] if caption else item.get('table_body', '')
+            if item_type == "title":
+                return item.get("title", "")
+            elif item_type == "paragraph":
+                return item.get("text", "")
+            elif item_type == "list":
+                return item.get("text", "")
+            elif item_type == "equation":
+                return item.get("latex", "")
+            elif item_type == "image":
+                caption = item.get("image_caption", [])
+                return caption[0] if caption else ""
+            elif item_type == "table":
+                caption = item.get("table_caption", [])
+                return caption[0] if caption else item.get("table_body", "")
 
     except (KeyError, IndexError, TypeError):
         pass
 
-    return ''
+    return ""
 
 
 # =============================================================================
 # Content Normalization Utilities
 # =============================================================================
 
-def normalize_content_list_v2(content_list_v2: List[List[Dict]], base_dir: str) -> List[List[Dict]]:
+
+def normalize_content_list(content_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    标准化 content_list，将不支持的类型转换为标准类型
+
+    转换规则:
+    - list: 将 list_items 合并为一个 text 项，用换行符连接
+    - page_number: 直接丢弃
+    - footer: 直接丢弃
+
+    Args:
+        content_list: 原始 content_list
+
+    Returns:
+        标准化后的 content_list
+
+    Example:
+        >>> # 输入:
+        >>> content_list = [
+        ...     {"type": "list", "sub_type": "text", "list_items": ["item1", "item2"], "page_idx": 22},
+        ...     {"type": "page_number", "text": "1", "page_idx": 0},
+        ...     {"type": "footer", "text": "Confidential", "page_idx": 0}
+        ... ]
+        >>> # 输出:
+        >>> # [{"type": "text", "text": "item1\\nitem2", "page_idx": 22}]
+    """
+    normalized_list = []
+    discarded_types = {"page_number", "footer"}
+    discard_counts = {t: 0 for t in discarded_types}
+    list_count = 0
+
+    for item in content_list:
+        if not isinstance(item, dict):
+            normalized_list.append(item)
+            continue
+
+        content_type = item.get("type", "")
+
+        # Handle list type - merge list_items into single text
+        if content_type == "list":
+            list_items = item.get("list_items", [])
+            if list_items:
+                # Merge all list items with newlines
+                merged_text = "\n".join(
+                    str(item_content) for item_content in list_items if item_content
+                )
+                if merged_text.strip():
+                    normalized_list.append(
+                        {
+                            "type": "text",
+                            "text": merged_text,
+                            "page_idx": item.get("page_idx", 0),
+                        }
+                    )
+                    list_count += 1
+
+        # Discard page_number and footer
+        elif content_type in discarded_types:
+            discard_counts[content_type] += 1
+            continue
+
+        # Keep all other types as-is
+        else:
+            normalized_list.append(item)
+
+    # Log statistics
+    if list_count > 0:
+        logger.info(f"✅ Converted {list_count} list items to text")
+    total_discarded = sum(discard_counts.values())
+    if total_discarded > 0:
+        logger.info(f"⏭️ Discarded {total_discarded} items: {discard_counts}")
+
+    return normalized_list
+
+
+def normalize_content_list_v2(
+    content_list_v2: List[List[Dict]], base_dir: Path
+) -> List[List[Dict]]:
     """
     Convert v2 format to standard RAGAnything format
 
@@ -445,11 +545,11 @@ def normalize_content_list_v2(content_list_v2: List[List[Dict]], base_dir: str) 
     Returns:
         Normalized content list v2
     """
-    base_path = Path(base_dir)
+
     fixed_count = 0
 
     # Pre-compile regex patterns for better performance
-    clean_pattern = re.compile(r'[^\w\u4e00-\u9fff-]')
+    clean_pattern = re.compile(r"[^\w\u4e00-\u9fff-]")
 
     for page_items in content_list_v2:
         for item in page_items:
@@ -465,14 +565,14 @@ def normalize_content_list_v2(content_list_v2: List[List[Dict]], base_dir: str) 
                 if "image_source" in content and "path" in content["image_source"]:
                     img_path = content["image_source"]["path"]
                     if not os.path.isabs(img_path):
-                        img_path = str(base_path / img_path)
-                    item["img_path"] = img_path
+                        img_path = base_dir / img_path
+                    item["img_path"] = img_path.as_posix()
                     fixed_count += 1
                 # Handle direct img_path in content
                 elif "img_path" in content:
                     img_path = content["img_path"]
                     if not os.path.isabs(img_path):
-                        img_path = str(base_path / img_path)
+                        img_path = base_dir / img_path
                     item["img_path"] = img_path
                     fixed_count += 1
 
@@ -487,8 +587,8 @@ def normalize_content_list_v2(content_list_v2: List[List[Dict]], base_dir: str) 
                 if "table_path" in content:
                     table_path = content["table_path"]
                     if not os.path.isabs(table_path):
-                        table_path = str(base_path / table_path)
-                    item["img_path"] = table_path
+                        table_path = base_dir / table_path
+                    item["img_path"] = table_path.as_posix()
                     fixed_count += 1
 
                 # Move other fields to top level
@@ -533,14 +633,48 @@ def normalize_content_list_v2(content_list_v2: List[List[Dict]], base_dir: str) 
             # Clean titles for doc_id generation
             if item_type == "title" and "text" in item:
                 title = item["text"]
-                clean_title = clean_pattern.sub('_', title[:30]).strip('_')
+                clean_title = clean_pattern.sub("_", title[:30]).strip("_")
                 item["clean_title"] = clean_title
 
     logger.info(f"✅ Normalized {fixed_count} v2 format items to RAGAnything format")
     return content_list_v2
 
 
-def load_content_list_v2(data_dir: str) -> Tuple[List[List[Dict]], str]:
+def full_content_list_v1_image_path(
+    content_list_v1: List[Dict], base_dir: str | Path
+) -> List[Dict]:
+    """
+    将 content_list 中所有图片相对路径转换为绝对路径
+
+    支持的图片路径格式：
+    1. 顶层 img_path: {"type": "image", "img_path": "images/xxx.jpg", ...}
+    2. 嵌套 image_source.path: {"type": "image", "content": {"image_source": {"path": "images/xxx.jpg"}}, ...}
+
+    Args:
+        content_list_v1: 内容列表（单维数组），每项是一个内容字典
+        base_dir: 基础目录，用于解析相对路径
+
+    Returns:
+        处理后的内容列表，所有图片路径均为绝对路径
+    """
+    base_path = Path(base_dir)
+    fixed_count = 0
+    for item in content_list_v1:
+        img_path = item.get("img_path")
+        if img_path:
+            img_path = item.get("img_path")
+            if img_path and not os.path.isabs(img_path):
+                item["img_path"] = str(base_path / img_path)
+                fixed_count += 1
+    if fixed_count > 0:
+        logger.info(
+            f"✅ 已将 {fixed_count} 个图片路径转换为绝对路径（基准目录: {base_path}）"
+        )
+
+    return content_list_v1
+
+
+def load_content_list_v2(data_dir: str) -> Tuple[List[Dict], List[List[Dict]], str]:
     """
     Load content_list_v2.json from specified directory
 
@@ -548,33 +682,46 @@ def load_content_list_v2(data_dir: str) -> Tuple[List[List[Dict]], str]:
         data_dir: Directory path containing *_content_list_v2.json
 
     Returns:
-        Tuple of (content_list_v2, json_file_path)
+        Tuple of (content_list_v2, content_list, json_file_path)
     """
     vlm_base_dir = Path(data_dir)
 
     # Find v2 format files
     json_files = list(vlm_base_dir.glob("*_content_list_v2.json"))
+    json_files_v1 = list(vlm_base_dir.glob("*_content_list.json"))
 
-    if not json_files:
-        raise FileNotFoundError(f"No *_content_list_v2.json files found in {vlm_base_dir}")
+    if not json_files or not json_files_v1:
+        raise FileNotFoundError(
+            f"No *_content_list_v2.json files found in {vlm_base_dir} or {json_files_v1}"
+        )
 
     if len(json_files) > 1:
         logger.warning(f"Multiple v2 files found: {[f.name for f in json_files]}")
         logger.info(f"Using first file: {json_files[0].name}")
 
+    if len(json_files_v1) > 1:
+        logger.warning(f"Multiple v2 files found: {[f.name for f in json_files_v1]}")
+        logger.info(f"Using first file: {json_files_v1[0].name}")
+
     json_path = json_files[0]
+    json_path_v1 = json_files_v1[0]
 
     if not json_path.exists():
         raise FileNotFoundError(f"Test data file not found: {json_path}")
+    if not json_path_v1.exists():
+        raise FileNotFoundError(f"Test data file not found: {json_path_v1}")
 
-    logger.info(f"📂 Loading v2 test data: {json_path}")
+    logger.info(f"📂 Loading v2 test data: {json_path} and v1 {json_path_v1}")
+
+    with open(json_path_v1, "r", encoding="utf-8") as f:
+        content_list_v1 = json.load(f)
 
     with open(json_path, "r", encoding="utf-8") as f:
         content_list_v2 = json.load(f)
 
     # Normalize the content
     normalized_content = normalize_content_list_v2(content_list_v2, vlm_base_dir)
-
+    content_list_v1 = full_content_list_v1_image_path(content_list_v1, vlm_base_dir)
     # Get type statistics
     type_counts = {}
     for page_items in normalized_content:
@@ -585,16 +732,45 @@ def load_content_list_v2(data_dir: str) -> Tuple[List[List[Dict]], str]:
     logger.info(f"✅ Loaded {len(normalized_content)} pages of test data")
     logger.info(f"📊 Content type statistics: {type_counts}")
 
-    return normalized_content, json_path
+    return content_list_v1, normalized_content, json_path.as_posix()
+
+
+def get_content_list_by_range(
+    content_list_v1: List[Dict], page_idx_start: int, page_idx_end: int
+) -> List[Dict]:
+    """
+    从 content_list_v1 取 page_idx_start 到 page_idx_end 的数据
+
+    Args:
+        content_list_v1: 内容列表（单维数组），每项是一个包含 page_idx 的内容字典
+        page_idx_start: 起始页码（包含）
+        page_idx_end: 结束页码（包含）
+
+    Returns:
+        List[Dict]: 筛选后的内容列表，只包含 page_idx 在指定范围内的项
+
+    Example:
+        >>> pages = get_content_list_by_range(content_list, 0, 5)
+        >>> len(pages)
+        120  # 返回第 0-5 页的所有内容项
+    """
+    result = []
+    for item in content_list_v1:
+        page_idx = item.get("page_idx", 0)
+        if page_idx_start <= page_idx <= page_idx_end:
+            result.append(item)
+    return result
 
 
 # =============================================================================
 # Progress Tracking Utilities
 # =============================================================================
 
+
 @dataclass
 class ProgressStatus:
     """Progress status enumeration"""
+
     STARTED = "started"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -603,6 +779,7 @@ class ProgressStatus:
 @dataclass
 class RetryConfig:
     """Retry configuration"""
+
     max_retries: int = 2
     base_wait_time: int = 5
 
@@ -619,20 +796,27 @@ class BaseProgressTracker:
         """Load progress from file"""
         if Path(self.progress_file).exists():
             try:
-                with open(self.progress_file, 'r', encoding='utf-8') as f:
+                with open(self.progress_file, "r", encoding="utf-8") as f:
                     progress = json.load(f)
                 logger.info(f"📂 Loaded progress file: {self.progress_file}")
 
                 # Log previous state
-                started_count = len(progress.get('started', []))
-                completed_count = len(progress.get('completed', []))
-                failed_count = len(progress.get('failed', []))
-                logger.info(f"   Previous state: {started_count} started, {completed_count} completed, {failed_count} failed")
+                started_count = len(progress.get("started", []))
+                completed_count = len(progress.get("completed", []))
+                failed_count = len(progress.get("failed", []))
+                logger.info(
+                    f"   Previous state: {started_count} started, {completed_count} completed, {failed_count} failed"
+                )
 
                 return progress
             except Exception as e:
                 logger.warning(f"⚠️ Failed to load progress file: {e}, creating new")
-                return {"started": [], "completed": [], "failed": [], "document_info": {}}
+                return {
+                    "started": [],
+                    "completed": [],
+                    "failed": [],
+                    "document_info": {},
+                }
         return {"started": [], "completed": [], "failed": [], "document_info": {}}
 
     def _save_progress(self):
@@ -640,7 +824,7 @@ class BaseProgressTracker:
         try:
             current_state = json.dumps(self._progress_data, sort_keys=True)
             if self._last_saved_state != current_state:
-                with open(self.progress_file, 'w', encoding='utf-8') as f:
+                with open(self.progress_file, "w", encoding="utf-8") as f:
                     json.dump(self._progress_data, f, ensure_ascii=False, indent=2)
                 self._last_saved_state = current_state
         except Exception as e:
@@ -680,7 +864,9 @@ class ContentProcessingProgressTracker(BaseProgressTracker):
         self._progress_data["document_info"] = {
             "file_path": file_path,
             "total_sections": total_sections,
-            "last_update": str(Path(file_path).stat().st_mtime) if Path(file_path).exists() else None,
+            "last_update": str(Path(file_path).stat().st_mtime)
+            if Path(file_path).exists()
+            else None,
         }
         self._save_progress()
 
@@ -702,13 +888,27 @@ class ContentProcessingProgressTracker(BaseProgressTracker):
         if doc_id not in self._progress_data.get("completed", []):
             self._progress_data.setdefault("completed", []).append(doc_id)
             # Remove from started
-            self._progress_data["started"] = [d for d in self._progress_data.get("started", []) if d != doc_id]
+            self._progress_data["started"] = [
+                d for d in self._progress_data.get("started", []) if d != doc_id
+            ]
             # Remove from failed
-            self._progress_data["failed"] = [f for f in self._progress_data.get("failed", []) if f["doc_id"] != doc_id]
+            self._progress_data["failed"] = [
+                f
+                for f in self._progress_data.get("failed", [])
+                if f["doc_id"] != doc_id
+            ]
             self._save_progress()
             logger.info(f"  💾 Marked as completed: {title or doc_id}")
 
-    def mark_failed(self, doc_id: str, title: str, error: str, retry_count: int = None, max_retries: int = None, retry_config: RetryConfig = None):
+    def mark_failed(
+        self,
+        doc_id: str,
+        title: str,
+        error: str,
+        retry_count: int = None,
+        max_retries: int = None,
+        retry_config: RetryConfig = None,
+    ):
         """Mark a section as failed
 
         Supports two calling conventions:
@@ -735,14 +935,20 @@ class ContentProcessingProgressTracker(BaseProgressTracker):
             "error": error,
             "retry_count": actual_retry_count,
             "max_retries": actual_max_retries,
-            "last_failed": str(Path(self.progress_file).stat().st_mtime) if Path(self.progress_file).exists() else None,
+            "last_failed": str(Path(self.progress_file).stat().st_mtime)
+            if Path(self.progress_file).exists()
+            else None,
         }
 
         # Remove from started
-        self._progress_data["started"] = [d for d in self._progress_data.get("started", []) if d != doc_id]
+        self._progress_data["started"] = [
+            d for d in self._progress_data.get("started", []) if d != doc_id
+        ]
 
         # Remove old failed record and add new one
-        self._progress_data["failed"] = [f for f in self._progress_data.get("failed", []) if f["doc_id"] != doc_id]
+        self._progress_data["failed"] = [
+            f for f in self._progress_data.get("failed", []) if f["doc_id"] != doc_id
+        ]
         self._progress_data.setdefault("failed", []).append(failed_record)
         self._save_progress()
         logger.info(f"  💾 Marked as failed: {title}")
@@ -764,6 +970,7 @@ class ContentProcessingProgressTracker(BaseProgressTracker):
 # Environment Validation Utilities
 # =============================================================================
 
+
 def validate_required_env_vars(required_vars: Dict[str, str]) -> None:
     """
     Validate required environment variables
@@ -781,8 +988,12 @@ def validate_required_env_vars(required_vars: Dict[str, str]) -> None:
             missing_vars.append(f"  - {var_name}: {description}")
 
     if missing_vars:
-        error_msg = "❌ Missing required environment variables:\n\n" + "\n".join(missing_vars)
-        error_msg += f"\n\nPlease configure these variables in your .env file before running."
+        error_msg = "❌ Missing required environment variables:\n\n" + "\n".join(
+            missing_vars
+        )
+        error_msg += (
+            "\n\nPlease configure these variables in your .env file before running."
+        )
         raise ValueError(error_msg)
 
     logger.info("✅ Environment variables validation passed")
@@ -811,8 +1022,10 @@ def get_required_env(var_name: str) -> str:
 # Constants
 # =============================================================================
 
+
 class ContentType(str, Enum):
     """Content type enumeration"""
+
     TITLE = "title"
     PARAGRAPH = "paragraph"
     LIST = "list"
@@ -827,6 +1040,7 @@ class ContentType(str, Enum):
 
 class ProgressMessage:
     """Progress tracking message constants"""
+
     COMPLETED = "✅ 完成"
     FAILED = "⚠️ 失败"
     SKIPPED = "⏭️ 跳过"
@@ -836,15 +1050,17 @@ class ProgressMessage:
 
 class ChapterPattern:
     """Chapter detection patterns"""
-    CHINESE = r'^第[一二三四五六七八九十\d]+章'
-    ENGLISH = r'^Chapter\s+\d+'
-    SECTION_CHINESE = r'^\d+\.\d+\s+'
-    SECTION_ENGLISH = r'^\d+\.\d+\.\d+\s+'
+
+    CHINESE = r"^第[一二三四五六七八九十\d]+章"
+    ENGLISH = r"^Chapter\s+\d+"
+    SECTION_CHINESE = r"^\d+\.\d+\s+"
+    SECTION_ENGLISH = r"^\d+\.\d+\.\d+\s+"
 
 
 # =============================================================================
 # Query Prompt Utilities
 # =============================================================================
+
 
 def get_chinese_query_prompt() -> str:
     """

@@ -54,6 +54,43 @@ class ContentListV2Splitter:
         r'^\d+\.\d+\.\d+\s+',  # 1.1.1 更细的分层
     ]
 
+    # Milvus varchar field max length
+    MAX_DOC_ID_LENGTH = 64
+
+    def _generate_safe_doc_id(
+        self,
+        prefix: str,
+        chapter_num: int,
+        title: str,
+        part_num: int = None
+    ) -> str:
+        """
+        生成安全的 doc_id，确保不超过 Milvus 的 64 字符限制
+
+        Args:
+            prefix: doc_id 前缀
+            chapter_num: 章节编号
+            title: 章节标题
+            part_num: 可选的分段编号
+
+        Returns:
+            长度不超过 64 字符的 doc_id
+        """
+        # 计算基础组件长度
+        base_part = f"{prefix}_ch{chapter_num}_"
+        if part_num is not None:
+            base_part = f"{base_part}part{part_num}_"
+
+        # 计算标题可用的最大长度
+        max_title_length = self.MAX_DOC_ID_LENGTH - len(base_part)
+
+        # 清理并截断标题
+        clean_title = re.sub(r'[^\w\u4e00-\u9fff-]', '_', title)
+        clean_title = clean_title[:max_title_length].strip('_')
+
+        doc_id = f"{base_part}{clean_title}"
+        return doc_id
+
     def __init__(
         self,
         chapter_patterns: List[str] = None,
@@ -79,7 +116,7 @@ class ContentListV2Splitter:
         content_list_v2: List,
         doc_id_prefix: str = None,
         max_pages: int = None,
-        use_sections_as_fallback: bool = True,
+        use_sections_as_fallback: bool = True
     ) -> List[Dict[str, Any]]:
         """
         按章节切分，大章节自动按页数拆分
@@ -89,6 +126,7 @@ class ContentListV2Splitter:
             doc_id_prefix: doc_id 前缀
             max_pages: 大章节自动拆分的页数阈值，默认使用初始化时的值
             use_sections_as_fallback: 如果没有找到章节标题，是否使用小节标题作为切分点
+            output_json_path: 可选的 JSON 输出文件路径，用于保存切分结果
 
         Returns:
             章节列表，每项包含:
@@ -136,19 +174,19 @@ class ContentListV2Splitter:
                 chapter_num += 1
                 flattened_content = self._flatten_page_content(content_list_v2, start_page, end_page)
 
-                clean_title = re.sub(r'[^\w\u4e00-\u9fff-]', '_', title[:30]).strip('_').strip('_')
-                doc_id = f"{doc_id_prefix}_ch{chapter_num}_{clean_title}" if doc_id_prefix else None
+                doc_id = self._generate_safe_doc_id(doc_id_prefix, chapter_num, title) if doc_id_prefix else None
 
                 result.append({
                     'doc_id': doc_id,
                     'title': title,
-                    'content': flattened_content,
+                    # 'content_list': flattened_content,
                     'page_range': [start_page, end_page],
                     'item_count': len(flattened_content),
                     'is_split': False,
                 })
 
         logger.info(f"📚 按章节切分: {len(result)} 个批次（包含拆分后的大章节）")
+
         return result
 
     def _detect_content_start_page(self, content_list_v2: List) -> int:
@@ -358,8 +396,6 @@ class ContentListV2Splitter:
         part_num = 0
         current_start = start_page
 
-        clean_title = re.sub(r'[^\w\u4e00-\u9fff-]', '_', title[:30]).strip('_')
-
         while current_start <= end_page:
             current_end = min(current_start + max_pages - 1, end_page)
             part_num += 1
@@ -367,12 +403,12 @@ class ContentListV2Splitter:
             # 展平内容
             flattened_content = self._flatten_page_content(content_list_v2, current_start, current_end)
 
-            doc_id = f"{doc_id_prefix}_ch{chapter_num}_{clean_title}_part{part_num}" if doc_id_prefix else None
+            doc_id = self._generate_safe_doc_id(doc_id_prefix, chapter_num, title, part_num) if doc_id_prefix else None
 
             batches.append({
                 'doc_id': doc_id,
                 'title': f"{title} (第{part_num}部分)",
-                'content': flattened_content,
+                # 'content_list': flattened_content,
                 'page_range': [current_start, current_end],
                 'item_count': len(flattened_content),
                 'is_split': True,
@@ -416,7 +452,7 @@ class ContentListV2Splitter:
             for item in content_list_v2[page_idx]:
                 if item.get('type') in self.PAGE_AUX_TYPES:
                     continue
-                item_with_page = {**item, '_page_idx': page_idx}
+                item_with_page = {**item, 'page_idx': page_idx}
                 flattened_content.append(item_with_page)
         return flattened_content
 

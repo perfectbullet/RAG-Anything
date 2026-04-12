@@ -8,6 +8,10 @@
 使用 aquery () 方法执行纯文本查询
 使用 aquery_with_multimodal () 方法，结合指定的多模态内容执行多模态查询
 处理已插入知识库中的各类多模态内容
+
+
+cd examples
+python  insert_content_list_example.py
 """
 
 import os
@@ -28,7 +32,7 @@ from raganything import RAGAnything, RAGAnythingConfig
 
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=".env", override=False)
+load_dotenv(dotenv_path="../.env", override=False)
 
 
 def configure_logging():
@@ -88,6 +92,23 @@ def configure_logging():
     # Enable verbose debug if needed
     set_verbose_debug(os.getenv("VERBOSE", "false").lower() == "true")
 
+def get_required_env(var_name: str) -> str:
+    """
+    Get required environment variable or raise error
+
+    Args:
+        var_name: Environment variable name
+
+    Returns:
+        str: Environment variable value
+
+    Raises:
+        ValueError: If variable is missing
+    """
+    value = os.getenv(var_name)
+    if value is None or value.strip() == "":
+        raise ValueError(f"Missing required environment variable: {var_name}")
+    return value.strip()
 
 def create_sample_content_list():
     """
@@ -200,7 +221,7 @@ async def demo_insert_content_list(
         # Define LLM model function
         def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
             return openai_complete_if_cache(
-                "gpt-4o-mini",
+                get_required_env("OPENAI_MODEL"),
                 prompt,
                 system_prompt=system_prompt,
                 history_messages=history_messages,
@@ -215,7 +236,7 @@ async def demo_insert_content_list(
         ):
             if image_data:
                 return openai_complete_if_cache(
-                    "gpt-4o",
+                    get_required_env("VISION_MODEL"),
                     "",
                     system_prompt=None,
                     history_messages=[],
@@ -244,11 +265,11 @@ async def demo_insert_content_list(
                 )
             else:
                 return llm_model_func(prompt, system_prompt, history_messages, **kwargs)
-
+        
         # Define embedding function - using environment variables for configuration
-        embedding_dim = int(os.getenv("EMBEDDING_DIM", "3072"))
-        embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
-
+        embedding_dim = int(get_required_env("VLLM_EMBED_DIM"))
+        embedding_model = get_required_env("VLLM_EMBED_MODEL")
+        
         embedding_func = EmbeddingFunc(
             embedding_dim=embedding_dim,
             max_token_size=8192,

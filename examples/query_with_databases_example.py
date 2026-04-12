@@ -62,7 +62,6 @@ from raganything.content_list_v2_splitter import ContentListV2Splitter
 from raganything.utils import (
     validate_required_env_vars,
     get_required_env,
-    load_content_list_v2,
     ContentProcessingProgressTracker,
     RetryConfig,
     ProgressMessage,
@@ -435,7 +434,7 @@ async def main():
     # 5. 示例查询
     logger.info("\n🔍 执行示例查询...")
     test_queries = [
-        "请帮我讲解等差数列的概念.",
+        "请帮我讲解集合的概念.",
         # "今天北京天气怎么样？"
     ]
 
@@ -449,8 +448,8 @@ async def main():
             query,
             mode="hybrid",
             system_prompt=get_chinese_query_prompt(),  # 中文系统提示词（无 References）
-            top_k=20, # 召回实体/关系数量
-            chunk_top_k=10,  # (默认10) - 召回文档块数量
+            top_k=2, # 召回实体/关系数量
+            chunk_top_k=3,  # (默认10) - 召回文档块数量
             enable_rerank=True # (默认True) - 是否启用重排序
             ):
             chunk_type = chunk.get("type")

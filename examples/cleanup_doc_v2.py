@@ -63,7 +63,6 @@ from raganything.content_list_v2_splitter import ContentListV2Splitter
 from raganything.utils import (
     validate_required_env_vars,
     get_required_env,
-    load_content_list_v2,
     ContentProcessingProgressTracker,
     RetryConfig,
     ProgressMessage,
@@ -412,24 +411,7 @@ def get_embedding_func():
         embedding_dim=embed_dim, max_token_size=8192, func=vllm_embedding_func
     )
 
-
-# =============================================================================
-# 测试数据加载
-# =============================================================================
-def load_test_content_list(data_dir: str):
-    """
-    从指定目录加载 content_list_v2.json 测试数据并处理图片路径
-
-    Args:
-        data_dir: 数据目录路径
-                 - 指定目录: 自动在该目录下查找 *_content_list_v2.json 文件
-
-    Returns:
-        tuple: (content_list_v2, json_path) - 处理后的 content_list_v2 和 json 文件路径
-    """
-    # 使用新的 utility 函数
-    return load_content_list_v2(data_dir)
-
+ 
 
 # =============================================================================
 # 按章节处理大文件
