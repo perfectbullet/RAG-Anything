@@ -18,6 +18,7 @@ Example:
 
 import re
 import json
+import hashlib
 from typing import List, Dict, Any, Optional
 from functools import lru_cache
 from lightrag.utils import logger
@@ -77,18 +78,12 @@ class ContentListV2Splitter:
             长度不超过 64 字符的 doc_id
         """
         # 计算基础组件长度
-        base_part = f"{prefix}_ch{chapter_num}_"
-        if part_num is not None:
-            base_part = f"{base_part}part{part_num}_"
+        base_part = f"{prefix}_"
 
-        # 计算标题可用的最大长度
-        max_title_length = self.MAX_DOC_ID_LENGTH - len(base_part)
+        # 使用标题的 MD5 hash (8位) 替代长标题，确保长度可控且保持唯一性
+        title_hash = hashlib.md5(title.encode('utf-8')).hexdigest()[:8]
 
-        # 清理并截断标题
-        clean_title = re.sub(r'[^\w\u4e00-\u9fff-]', '_', title)
-        clean_title = clean_title[:max_title_length].strip('_')
-
-        doc_id = f"{base_part}{clean_title}"
+        doc_id = f"{base_part}{title_hash}"
         return doc_id
 
     def __init__(
