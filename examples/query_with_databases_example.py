@@ -158,7 +158,10 @@ def configure_logging():
             "version": 1,
             "disable_existing_loggers": False,
             "formatters": {
-                "default": {"format": "%(asctime)s - %(levelname)s: %(message)s", "datefmt": "%H:%M:%S"},
+                "default": {
+                    "format": "%(asctime)s - %(levelname)s: %(message)s", 
+                    "datefmt": "%Y-%m-%d %H:%M:%S"
+                },
                 "detailed": {
                     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                     "datefmt": "%Y-%m-%d %H:%M:%S"
@@ -329,6 +332,7 @@ async def vllm_reranker_func(
                         "doc_id": idx,
                         "index": idx,
                         "relevance_score": item["relevance_score"],
+                        "score": item["relevance_score"],
                         "text": item.get("document", {}).get("text", documents[idx]),
                     }
                 )
@@ -408,8 +412,8 @@ async def main():
             "rerank_model_func": vllm_reranker_func,
             "vector_db_storage_cls_kwargs": milvus_config,
             # LightRAG 配置 (注意: 使用 cosine_better_than_threshold 而不是 cosine_threshold)
-            "cosine_better_than_threshold": 0.5,  # 向量相似度阈值
-            "min_rerank_score": 0.3,  # 过滤 rerank 分数低于 0.2 的 chunks
+            "cosine_better_than_threshold": 0.8,  # 向量相似度阈值
+            "min_rerank_score": 0.9,  # 过滤 rerank 分数低于 0.2 的 chunks
             # 缓存开关
             "enable_llm_cache": True,
             # 语言配置
@@ -451,7 +455,7 @@ async def main():
             top_k=2, # 召回实体/关系数量
             chunk_top_k=3,  # (默认10) - 召回文档块数量
             enable_rerank=True # (默认True) - 是否启用重排序
-            ):
+        ):
             chunk_type = chunk.get("type")
             content = chunk.get("content")
             if chunk_type == "sources_info":
@@ -469,21 +473,34 @@ async def main():
                 sources = content
                 print("\n\n" + "-" * 50)
                 print("📚 来源信息:")
-                print(f"the sources is {sources}")
+                
+                # 【调试代码】
+                from datetime import datetime
+                import json
+                # 保存 sources 为 JSON 文件
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                json_file_path = f"json格式数据/{timestamp}_sources.json"
+                with open(json_file_path, 'w', encoding='utf-8') as f:
+                    json.dump(sources, f, ensure_ascii=False, indent=2)
+                print(f"📁 来源数据已保存到: {json_file_path}")
+                
                 # 显示实体
                 if sources.get("entities"):
                     print(f"\n  实体 ({len(sources['entities'])} 个):")
                     for entity in sources["entities"][:5]:  # 只显示前5个
                         print(f"    - {entity.get('entity_name', 'N/A')}")
                     if len(sources["entities"]) > 5:
-                        print(f"    ... 还有 {len(sources['entities']) - 5} 个实体")
+                        print(f"    ... 还有 {len(sources['entities']) - 5} 个实体\n\n\n")
 
                 # 显示文档块
                 if sources.get("chunks"):
                     print(f"\n  文档块 ({len(sources['chunks'])} 个):")
                     for i, chunk in enumerate(sources["chunks"][:3], 1):  # 只显示前3个
                         content_preview = chunk.get("content", "")
-                        print(f"    [{i}] {content_preview}...")
+                        rerank_score = chunk.get("rerank_score")
+                        score_str = f" [重排分数: {rerank_score:.4f}]" if rerank_score is not None else "重排分数: no score"
+                        print(f"[{i}] {score_str}")
+                        print(f"[{i}] {content_preview}")
                     if len(sources["chunks"]) > 3:
                         print(f"    ... 还有 {len(sources['chunks']) - 3} 个文档块")
             
