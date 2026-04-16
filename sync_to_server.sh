@@ -3,9 +3,9 @@
 # 用法: ./sync_to_server.sh [选项]
 
 # 配置
-SERVER_HOST="zenking@192.168.8.234"
-SERVER_PATH="/data/metahuman_work/RAG-Anything-data-insert"
-# SERVER_PATH="/data/metahuman_work/RAG-Anything"
+SERVER_HOST="zenking@192.168.8.233"
+# SERVER_PATH="/data/metahuman_work/RAG-Anything-data-insert"
+SERVER_PATH="/data/metahuman_work/RAG-Anything"
 LOCAL_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 颜色输出
@@ -105,10 +105,10 @@ EXCLUDES=(
     'log/'
 
     # # 环境变量和敏感文件
-    # '.env'
-    # '.env.*'
-    # '*.env'
-    # 'env.example'
+    '.env'
+    '.env.*'
+    '*.env'
+    'env.example'
 
     # 数据和存储目录
     'rag_storage*/'

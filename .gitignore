@@ -91,6 +91,7 @@ env.example.zh
 json格式数据
 insert_progress.json
 docs/model-selection.md
-thirdpart_reps/
 doc_b7a9fab8f056_split_result.json
 doc_b7a9fab8f056_*.json
+docs
+debug_contexts

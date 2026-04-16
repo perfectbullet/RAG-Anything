@@ -57,23 +57,18 @@ from dotenv import load_dotenv
 from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc, logger, set_verbose_debug
 from raganything import RAGAnything, RAGAnythingConfig
-from raganything.utils import generate_doc_id_from_path
-from raganything.content_list_v2_splitter import ContentListV2Splitter
+
 from raganything.utils import (
     validate_required_env_vars,
     get_required_env,
-    ContentProcessingProgressTracker,
-    RetryConfig,
-    ProgressMessage,
-    get_chinese_query_prompt,
+    ProgressMessage
 )
+
+from raganything.query_prompts import get_chinese_query_prompt
 
 # Load .env file
 load_dotenv(dotenv_path=str(Path(__file__).parent.parent / ".env"), override=False)
 
-
- 
- 
 
 # =============================================================================
 # 配置验证
@@ -412,8 +407,8 @@ async def main():
             "rerank_model_func": vllm_reranker_func,
             "vector_db_storage_cls_kwargs": milvus_config,
             # LightRAG 配置 (注意: 使用 cosine_better_than_threshold 而不是 cosine_threshold)
-            "cosine_better_than_threshold": 0.8,  # 向量相似度阈值
-            "min_rerank_score": 0.9,  # 过滤 rerank 分数低于 0.2 的 chunks
+            "cosine_better_than_threshold": 0.6,  # 向量相似度阈值
+            "min_rerank_score": 0.8,  # 过滤 rerank 分数低于 min_rerank_score的 chunks
             # 缓存开关
             "enable_llm_cache": True,
             # 语言配置
@@ -438,8 +433,9 @@ async def main():
     # 5. 示例查询
     logger.info("\n🔍 执行示例查询...")
     test_queries = [
-        "请帮我讲解集合的概念.",
-        # "今天北京天气怎么样？"
+        # "请帮我讲解集合的概念.",
+        "一个庭审证明",
+        # "集合中元素是什么？"
     ]
 
     for query in test_queries:

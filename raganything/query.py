@@ -13,6 +13,8 @@ from pathlib import Path
 from lightrag import QueryParam, LightRAG
 from lightrag.utils import always_get_an_event_loop
 from raganything.prompt import PROMPTS
+from raganything.query_prompts import get_direct_response_prompt
+
 from raganything.utils import (
     get_processor_for_type,
     encode_image_to_base64,
@@ -894,6 +896,8 @@ class QueryMixin:
                 "metadata": result.get("metadata", {}),
             }
 
+            chunks_count = len(sources["chunks"])
+            
             # First, yield sources summary info
             yield {
                 "type": "sources_info",
@@ -903,17 +907,42 @@ class QueryMixin:
                     "chunks_count": len(sources["chunks"]),
                 },
             }
-
-            # Stream answer content
-            llm_response = result.get("llm_response", {})
-            response_iterator = llm_response.get("response_iterator")
-
-            if response_iterator:
-                async for content_chunk in response_iterator:
-                    yield {"type": "chunk", "content": content_chunk}
+            if chunks_count == 0:
+                # 情况1: 没有检索到文档块 - 直接调用LLM回复，不使用检索上下文
+                self.logger.info(
+                    f"No chunks retrieved, using direct LLM response for query: {query[:50]}..."
+                )
+                # 从配置中获取语言设置，默认使用中文
+                language = "Chinese"
+                if hasattr(self, "config") and hasattr(self.lightrag, "addon_params"):
+                    language = self.lightrag.addon_params.get("language", "Chinese")
+                   # 获取直接回复的系统提示词
+                direct_prompt = get_direct_response_prompt(language, system_prompt)
+                # 直接调用 LLM 模型函数
+                llm_result = await self.lightrag.llm_model_func(
+                    query, 
+                    system_prompt=direct_prompt,
+                    stream=True
+                )
+                # 输出回复内容（流式或非流式）
+                if hasattr(llm_result, "__aiter__"):
+                    # 流式输出
+                    async for content_chunk in llm_result:
+                        yield {"type": "chunk", "content": content_chunk}
+                else:
+                    # 非流式输出
+                    yield {"type": "chunk", "content": str(llm_result)}
             else:
-                # If no iterator, return full content as single chunk
-                yield {"type": "chunk", "content": llm_response.get("content", "")}
+                # Stream answer content
+                llm_response = result.get("llm_response", {})
+                response_iterator = llm_response.get("response_iterator")
+
+                if response_iterator:
+                    async for content_chunk in response_iterator:
+                        yield {"type": "chunk", "content": content_chunk}
+                else:
+                    # If no iterator, return full content as single chunk
+                    yield {"type": "chunk", "content": llm_response.get("content", "")}
 
             # At the end, yield complete sources data
             yield {"type": "sources", "content": sources}
