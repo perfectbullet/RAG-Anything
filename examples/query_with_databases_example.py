@@ -433,15 +433,15 @@ async def main():
     # 5. 示例查询
     logger.info("\n🔍 执行示例查询...")
     test_queries = [
-        # "请帮我讲解集合的概念.",
-        "一个庭审证明",
+        "请帮我讲解集合的概念.",
+        # "一个庭审证明",
         # "集合中元素是什么？"
     ]
 
     for query in test_queries:
-        logger.info(f"\n{'=' * 70}")
+        logger.info(f"\n{'=' * 100}")
         logger.info(f"[查询]: {query}")
-        logger.info(f"{'=' * 70}")
+        logger.info(f"{'=' * 100}")
 
         # 流式查询，实时显示答案并提供来源信息
         async for chunk in rag.aquery_stream_with_sources(
