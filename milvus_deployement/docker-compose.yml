@@ -16,6 +16,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    restart: unless-stopped
     networks:
       - milvus
 
@@ -37,6 +38,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    restart: unless-stopped
     networks:
       - milvus
 
@@ -61,6 +63,7 @@ services:
       - "minio"
     networks:
       - milvus
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
@@ -78,6 +81,7 @@ services:
       - "3000:3000"
     depends_on:
       - "milvus-standalone"
+    restart: unless-stopped
     networks:
       - milvus
 
