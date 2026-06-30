@@ -71,6 +71,9 @@ tiktoken_cache/
 # unit-test files
 test_*
 
+# Local-only scripts (server addresses / secrets, do not commit)
+sync_to_server.sh
+
 # Cline files
 memory-bank/
 
